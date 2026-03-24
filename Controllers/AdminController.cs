@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using WordGuessAPI.Data;
 
@@ -21,6 +20,7 @@ public class AdminController : ControllerBase
     [Authorize]
     public async Task<IActionResult> MakeMeAdmin()
     {
+        // Solo permitir en desarrollo (opcional, puedes quitar esta condición)
         if (!Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Development") ?? true)
             return NotFound();
 
