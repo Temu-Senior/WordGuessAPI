@@ -4,14 +4,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using WordGuessAPI.Data;
+using WordGuessAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Configurar DbContext con PostgreSQL
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger con soporte JWT
+// Swagger con JWT
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "WordGuessAPI", Version = "v1" });
@@ -34,10 +41,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-
-// DbContext
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -67,7 +70,6 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -75,17 +77,39 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
-// Aplicar migraciones automáticamente (opcional)
+// Aplicar migraciones y sembrar datos iniciales
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();   // <-- nueva línea
+    db.Database.Migrate();
+
+    if (!db.Words.Any())
+    {
+        db.Words.AddRange(new List<Word>
+        {
+            new Word { Text = "ruby", Difficulty = "easy" },
+            new Word { Text = "sinatra", Difficulty = "medium" },
+            new Word { Text = "docker", Difficulty = "hard" },
+            new Word { Text = "wordle", Difficulty = "medium", Date = DateTime.Today }
+        });
+        db.SaveChanges();
+    }
+
+    if (!db.Users.Any())
+    {
+        var admin = new User
+        {
+            Username = "admin",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+            IsAdmin = true
+        };
+        db.Users.Add(admin);
+        db.SaveChanges();
+    }
 }
 
 app.Run();
