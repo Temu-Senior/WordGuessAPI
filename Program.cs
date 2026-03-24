@@ -3,34 +3,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Npgsql;                               // <-- Añadido
 using WordGuessAPI.Data;
 using WordGuessAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Leer la cadena de conexión (puede ser DATABASE_URL o la clásica)
-var rawConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-                          ?? builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Convertir si es una URL estilo postgres://
-var connectionString = rawConnectionString;
-if (rawConnectionString != null && 
-    (rawConnectionString.StartsWith("postgres://") || rawConnectionString.StartsWith("postgresql://")))
-{
-    var uri = new Uri(rawConnectionString);
-    var npgsqlBuilder = new NpgsqlConnectionStringBuilder
-    {
-        Host = uri.Host,
-        Port = uri.Port > 0 ? uri.Port : 5432,
-        Database = uri.AbsolutePath.Trim('/'),
-        Username = uri.UserInfo.Split(':')[0],
-        Password = uri.UserInfo.Split(':')[1],
-        SslMode = SslMode.Require,        // Render exige SSL
-        TrustServerCertificate = true      // Opcional, evita problemas con certificados autofirmados
-    };
-    connectionString = npgsqlBuilder.ConnectionString;
-}
+// Leer la cadena de conexión (desde variable de entorno o appsettings)
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Registrar DbContext con PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -102,12 +82,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Aplicar EnsureCreated y sembrar datos iniciales
+// Aplicar EnsureCreated y sembrar datos iniciales (con UTC)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Usar EnsureCreated en lugar de Migrate
-    db.Database.EnsureCreated();   // <--- CAMBIADO
+    db.Database.EnsureCreated();   // Crea la BD y tablas si no existen
 
     if (!db.Words.Any())
     {
@@ -116,7 +95,7 @@ using (var scope = app.Services.CreateScope())
             new Word { Text = "ruby", Difficulty = "easy" },
             new Word { Text = "sinatra", Difficulty = "medium" },
             new Word { Text = "docker", Difficulty = "hard" },
-            new Word { Text = "wordle", Difficulty = "medium", Date = DateTime.Today }
+            new Word { Text = "wordle", Difficulty = "medium", Date = DateTime.UtcNow.Date }   // UTC
         });
         db.SaveChanges();
     }
