@@ -3,15 +3,36 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;                               // <-- Añadido
 using WordGuessAPI.Data;
 using WordGuessAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar DbContext con PostgreSQL
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
+// Leer la cadena de conexión (puede ser DATABASE_URL o la clásica)
+var rawConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                          ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
+// Convertir si es una URL estilo postgres://
+var connectionString = rawConnectionString;
+if (rawConnectionString != null && 
+    (rawConnectionString.StartsWith("postgres://") || rawConnectionString.StartsWith("postgresql://")))
+{
+    var uri = new Uri(rawConnectionString);
+    var npgsqlBuilder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Database = uri.AbsolutePath.Trim('/'),
+        Username = uri.UserInfo.Split(':')[0],
+        Password = uri.UserInfo.Split(':')[1],
+        SslMode = SslMode.Require,        // Render exige SSL
+        TrustServerCertificate = true      // Opcional, evita problemas con certificados autofirmados
+    };
+    connectionString = npgsqlBuilder.ConnectionString;
+}
+
+// Registrar DbContext con PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -85,7 +106,7 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    db.Database.Migrate();   // Crea las tablas si no existen
 
     if (!db.Words.Any())
     {
