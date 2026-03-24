@@ -11,7 +11,7 @@ using WordGuessAPI.Data;
 namespace WordGuessAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260324041232_InitialCreate")]
+    [Migration("20260324055619_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
