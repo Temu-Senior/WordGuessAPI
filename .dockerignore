@@ -1,0 +1,13 @@
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+Migrations/
+out/
+publish/
+.git/
+.vs/
+.vscode/
+*.user
+*.suo
