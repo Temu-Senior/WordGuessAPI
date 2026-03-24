@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.pidb
+*.psess
+*.ncrunchsolution
+*.ncrunchproject
+*.dotCover
+*.dbmdl
+*.dbproj.schemaview
+*.publishsettings
+*.vs/
+*.vscode/
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Migrations (opcional: si quieres subir las migraciones, comenta esta línea)
+# Migrations/
+
+# Build output
+out/
+publish/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs
+logs/
+*.log

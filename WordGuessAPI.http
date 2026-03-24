@@ -1,0 +1,6 @@
+@WordGuessAPI_HostAddress = http://localhost:5274
+
+GET {{WordGuessAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
