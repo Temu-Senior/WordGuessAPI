@@ -49,10 +49,14 @@ public class AuthController : ControllerBase
         if (await _context.Users.AnyAsync(u => u.Username == request.Username))
             return BadRequest(new { success = false, message = "Username already exists" });
 
+        // Determinar si es el primer usuario
+        var isFirstUser = !await _context.Users.AnyAsync();
+
         var user = new User
         {
             Username = request.Username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            IsAdmin = isFirstUser   // <--- El primer usuario será administrador
         };
         _context.Users.Add(user);
         await _context.SaveChangesAsync();

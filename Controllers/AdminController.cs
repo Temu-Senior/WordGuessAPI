@@ -20,10 +20,6 @@ public class AdminController : ControllerBase
     [Authorize]
     public async Task<IActionResult> MakeMeAdmin()
     {
-        // Solo permitir en desarrollo (opcional, puedes quitar esta condición)
-        if (!Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Development") ?? true)
-            return NotFound();
-
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var user = await _context.Users.FindAsync(userId);
         if (user == null)
