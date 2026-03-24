@@ -20,8 +20,10 @@ public class SeedController : ControllerBase
     [Authorize]
     public async Task<IActionResult> SeedDemo()
     {
-        if (!Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Development") ?? true)
-            return NotFound();
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || !user.IsAdmin)
+            return Forbid();
 
         var demoWords = new[]
         {
