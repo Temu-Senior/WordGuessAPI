@@ -102,11 +102,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Aplicar migraciones y sembrar datos iniciales
+// Aplicar EnsureCreated y sembrar datos iniciales
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();   // Crea las tablas si no existen
+    // Usar EnsureCreated en lugar de Migrate
+    db.Database.EnsureCreated();   // <--- CAMBIADO
 
     if (!db.Words.Any())
     {
