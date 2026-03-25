@@ -104,6 +104,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 
