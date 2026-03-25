@@ -106,6 +106,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseCors("AllowAll");
 app.UseAuthorization();
+app.UseDefaultFiles(); // Para que sirva index.html cuando se accede a la raíz
+app.UseStaticFiles();  // Para servir archivos estáticos desde wwwroot
 app.MapControllers();
 
 // Aplicar EnsureCreated y sembrar datos iniciales (con UTC)
