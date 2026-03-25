@@ -9,8 +9,21 @@ using WordGuessAPI.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // Leer la cadena de conexión (desde variable de entorno o appsettings)
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
+var rawConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                          ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+string connectionString;
+if (!string.IsNullOrEmpty(rawConnectionString) && 
+    (rawConnectionString.StartsWith("postgres://") || rawConnectionString.StartsWith("postgresql://")))
+{
+    var uri = new Uri(rawConnectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={uri.Port > 0 ? uri.Port : 5432};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SslMode=Require;TrustServerCertificate=true";
+}
+else
+{
+    connectionString = rawConnectionString;
+}
 
 // Registrar DbContext con PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
