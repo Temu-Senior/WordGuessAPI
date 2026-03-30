@@ -24,7 +24,8 @@ public class GameHub : Hub
             Code = roomCode,
             Difficulty = difficulty,
             WordLength = wordLength,
-            RoundActive = false
+            RoundActive = false,
+            CountdownActive = false
         };
         _rooms.TryAdd(roomCode, room);
         await JoinRoom(roomCode);
@@ -49,10 +50,15 @@ public class GameHub : Hub
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
         await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
 
-        // Si es el primer jugador y no hay ronda activa, iniciar cuenta regresiva tras breve espera
-        if (room.Players.Count == 1 && !room.RoundActive)
+        // Si es el primer jugador y no hay ronda activa ni countdown, iniciar el proceso de espera
+        if (room.Players.Count == 1 && !room.RoundActive && !room.CountdownActive)
         {
             _ = Task.Run(() => StartRoundCountdown(roomCode));
+        }
+        else
+        {
+            // Notificar a todos los clientes el número actual de jugadores (para actualizar el mensaje de espera)
+            await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Values.Count(p => p.Status == "alive"));
         }
     }
 
@@ -65,6 +71,8 @@ public class GameHub : Hub
             await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
             if (room.Players.IsEmpty)
                 _rooms.TryRemove(roomCode, out _);
+            else
+                await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Values.Count(p => p.Status == "alive"));
         }
     }
 
@@ -137,51 +145,63 @@ public class GameHub : Hub
     private async Task StartRoundCountdown(string roomCode)
     {
         if (!_rooms.TryGetValue(roomCode, out var room)) return;
-        // Esperar hasta que haya al menos 2 jugadores o máximo 10 segundos
-        int maxWait = 10;
-        while (room.Players.Count(p => p.Value.Status == "alive") < 2 && maxWait > 0)
+        if (room.CountdownActive) return;
+        room.CountdownActive = true;
+
+        try
         {
-            await Task.Delay(1000);
-            maxWait--;
+            // Notificar estado de espera inicial
+            await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Values.Count(p => p.Status == "alive"));
+
+            // Esperar hasta que haya al menos 2 jugadores vivos
+            while (room.Players.Values.Count(p => p.Status == "alive") < 2)
+            {
+                await Task.Delay(1000);
+                if (!_rooms.ContainsKey(roomCode)) return;
+                room = _rooms[roomCode];
+                await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Values.Count(p => p.Status == "alive"));
+            }
+
+            // Ahora sí, iniciar cuenta regresiva de 5 segundos
+            await Clients.Group(roomCode).SendAsync("RoundStarting", 5);
+            await Task.Delay(5000);
+
             if (!_rooms.ContainsKey(roomCode)) return;
             room = _rooms[roomCode];
-        }
-        if (!_rooms.ContainsKey(roomCode)) return;
+            if (room.RoundActive) return;
 
-        room = _rooms[roomCode];
-        if (room.RoundActive) return;
+            // Elegir palabra según longitud
+            var word = GetWordByLength(room.WordLength);
+            room.CurrentWord = word.ToUpper();
+            room.RoundActive = true;
+            room.RoundStartTime = DateTime.UtcNow;
 
-        await Clients.Group(roomCode).SendAsync("RoundStarting", 5);
-        await Task.Delay(5000);
-        if (!_rooms.ContainsKey(roomCode)) return;
-
-        // Elegir palabra según longitud
-        var word = GetWordByLength(room.WordLength);
-        room.CurrentWord = word.ToUpper();
-        room.RoundActive = true;
-        room.RoundStartTime = DateTime.UtcNow;
-
-        // Reiniciar estados de jugadores vivos
-        foreach (var p in room.Players.Values)
-        {
-            if (p.Status != "eliminated")
+            // Reiniciar estados de jugadores vivos
+            foreach (var p in room.Players.Values)
             {
-                p.AttemptsLeft = 6;
-                p.HasGuessedInRound = false;
-                p.Attempts.Clear();
-                p.Status = "alive";
+                if (p.Status != "eliminated")
+                {
+                    p.AttemptsLeft = 6;
+                    p.HasGuessedInRound = false;
+                    p.Attempts.Clear();
+                    p.Status = "alive";
+                }
             }
+
+            await Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength, room.TimeLimitSeconds);
+
+            // Temporizador de la ronda
+            room.RoundTimer?.Dispose();
+            room.RoundTimer = new Timer(async _ =>
+            {
+                if (room.RoundActive)
+                    await EndRound(roomCode);
+            }, null, room.TimeLimitSeconds * 1000, Timeout.Infinite);
         }
-
-        await Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength, room.TimeLimitSeconds);
-
-        // Temporizador de la ronda
-        room.RoundTimer?.Dispose();
-        room.RoundTimer = new Timer(async _ =>
+        finally
         {
-            if (room.RoundActive)
-                await EndRound(roomCode);
-        }, null, room.TimeLimitSeconds * 1000, Timeout.Infinite);
+            room.CountdownActive = false;
+        }
     }
 
     private async Task EndRound(string roomCode)
@@ -310,7 +330,7 @@ public class PlayerInRoom
     public string ConnectionId { get; set; }
     public string Name { get; set; }
     public int AttemptsLeft { get; set; } = 6;
-    public string Status { get; set; } = "alive"; // alive, eliminated
+    public string Status { get; set; } = "alive";
     public bool HasGuessedInRound { get; set; } = false;
     public DateTime GuessedRoundTime { get; set; }
     public List<AttemptInfo> Attempts { get; set; } = new();
@@ -323,6 +343,7 @@ public class Room
     public int WordLength { get; set; }
     public string Difficulty { get; set; } = "normal";
     public bool RoundActive { get; set; }
+    public bool CountdownActive { get; set; }
     public DateTime RoundStartTime { get; set; }
     public int TimeLimitSeconds { get; set; } = 60;
     public ConcurrentDictionary<string, PlayerInRoom> Players { get; set; } = new();
@@ -338,5 +359,5 @@ public class AttemptInfo
 public class LetterResult
 {
     public char Letter { get; set; }
-    public string Status { get; set; } // correct, present, absent
+    public string Status { get; set; }
 }

@@ -107,13 +107,14 @@
             </div>
         </div>
 
-        <!-- Pantalla de juego (dentro de una sala) -->
+        <!-- Pantalla de juego -->
         <div id="gameScreen" style="display:none;">
             <div class="top-bar">
                 <span>🎲 Sala: <strong id="roomCodeSpan"></strong></span>
                 <span>👥 <span id="playerCount">0</span> jugadores</span>
                 <button id="leaveRoomBtn" style="width:auto; background:#e74c3c;">Salir</button>
             </div>
+            <div id="waitingMsg" class="message-area" style="background:#2c2c2e;"></div>
             <div id="countdownDisplay" class="countdown"></div>
             <div id="roundTimer" class="timer"></div>
             <div id="board" class="board"></div>
@@ -123,7 +124,7 @@
         </div>
     </div>
 
-    <!-- Panel lateral con lista de jugadores -->
+    <!-- Panel lateral -->
     <div class="side-panel" id="sidePanel" style="display:none;">
         <h3>🏆 Jugadores en sala</h3>
         <ul id="playersList" class="players-list"></ul>
@@ -161,6 +162,7 @@
     const roundTimerSpan = document.getElementById('roundTimer');
     const usernameSpan = document.getElementById('usernameSpan');
     const adminSpan = document.getElementById('adminSpan');
+    const waitingMsgDiv = document.getElementById('waitingMsg');
 
     function showMsg(container, text, isError = false) {
         container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
@@ -418,6 +420,20 @@
             });
         });
 
+        connection.on("WaitingForPlayers", (playerCount) => {
+            if (playerCount < 2) {
+                waitingMsgDiv.innerHTML = `⏳ Esperando al menos 2 jugadores... (${playerCount}/2)`;
+                waitingMsgDiv.style.display = 'block';
+                // Ocultar tablero y deshabilitar juego
+                gameActive = false;
+                roundActive = false;
+                if (boardDiv) boardDiv.style.opacity = '0.5';
+            } else {
+                waitingMsgDiv.style.display = 'none';
+                if (boardDiv) boardDiv.style.opacity = '1';
+            }
+        });
+
         connection.on("RoundStarting", (seconds) => {
             startCountdown(seconds);
         });
@@ -463,7 +479,6 @@
             } else {
                 showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
             }
-            // Opcional: salir de la sala automáticamente tras unos segundos
             setTimeout(() => {
                 if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
                 gameScreen.style.display = 'none';
