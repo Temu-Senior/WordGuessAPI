@@ -6,11 +6,7 @@
     <title>Wordle Battle Royale</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-        }
-
+        * { box-sizing: border-box; user-select: none; }
         body {
             background: #121213;
             font-family: 'Clear Sans', 'Segoe UI', Arial, sans-serif;
@@ -22,31 +18,12 @@
             align-items: center;
             min-height: 100vh;
         }
-
-        .game-container {
-            max-width: 550px;
-            width: 100%;
-            margin: auto;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 2rem;
-            letter-spacing: 2px;
-            margin: 0 0 10px 0;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        /* Autenticación */
-        .auth-card {
-            background: #1a1a1b;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .auth-card input {
+        .game-container { max-width: 1200px; width: 100%; margin: auto; display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+        .main-panel { flex: 2; min-width: 300px; }
+        .side-panel { flex: 1; min-width: 250px; background: #1a1a1b; border-radius: 20px; padding: 15px; }
+        h1 { text-align: center; font-size: 2rem; margin: 0 0 10px; }
+        .auth-card, .lobby-card { background: #1a1a1b; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+        input, select, button {
             width: 100%;
             padding: 12px;
             margin: 8px 0;
@@ -56,202 +33,95 @@
             color: white;
             font-size: 1rem;
         }
-
-        .auth-card button {
-            width: 100%;
-            padding: 12px;
-            background: #538d4e;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-
-        .auth-card button:hover { background: #6aaa64; }
-
-        /* Barra superior */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            background: #1a1a1b;
-            padding: 8px 15px;
-            border-radius: 40px;
-        }
-
-        .user-info { font-weight: bold; }
-        .admin-badge { background: #facc15; color: #000; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
-        button.icon-btn {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2rem;
-            cursor: pointer;
-        }
-
-        /* Dificultad y control */
-        .difficulty-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            background: #1a1a1b;
-            padding: 10px;
-            border-radius: 40px;
-        }
-        select, .difficulty-bar button {
-            background: #2c2c2e;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 30px;
-            color: white;
-            cursor: pointer;
-        }
-        .difficulty-bar button { background: #538d4e; flex: 1; }
-
-        /* Cuadrícula Wordle */
-        .board {
-            display: grid;
-            grid-template-rows: repeat(6, 1fr);
-            gap: 5px;
-            margin-bottom: 20px;
-        }
-        .row {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 5px;
-        }
+        button { background: #538d4e; cursor: pointer; font-weight: bold; }
+        button:hover { background: #6aaa64; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #1a1a1b; padding: 8px 15px; border-radius: 40px; }
+        .board { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
+        .row { display: flex; justify-content: center; gap: 5px; }
         .tile {
-            aspect-ratio: 1 / 1;
-            background: #3a3a3c;
-            border: 2px solid #3a3a3c;
-            font-size: 2rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-transform: uppercase;
-            color: white;
-            transition: 0.1s ease;
+            width: 60px; height: 60px; background: #3a3a3c; border: 2px solid #3a3a3c;
+            font-size: 2rem; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            text-transform: uppercase; color: white;
         }
-        .tile.filled { border-color: #565758; animation: pop 0.1s ease; }
         .tile.correct { background: #538d4e; border-color: #538d4e; }
         .tile.present { background: #b59f3b; border-color: #b59f3b; }
         .tile.absent { background: #3a3a3c; border-color: #3a3a3c; }
-
-        @keyframes pop {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        /* Teclado virtual */
-        .keyboard {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin: 20px 0;
-        }
-        .key-row {
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-        }
+        .keyboard { margin: 20px 0; }
+        .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
         .key {
-            background: #818384;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-            font-size: 1rem;
-            padding: 12px 8px;
-            cursor: pointer;
-            text-transform: uppercase;
-            min-width: 32px;
-            flex: 1;
-            text-align: center;
+            background: #818384; border: none; border-radius: 4px; color: white;
+            font-weight: bold; font-size: 1rem; padding: 12px 8px; cursor: pointer;
+            text-transform: uppercase; min-width: 32px; flex: 1; text-align: center;
         }
         .key.wide { flex: 1.5; }
         .key.correct { background: #538d4e; }
         .key.present { background: #b59f3b; }
         .key.absent { background: #3a3a3c; }
-
-        /* Mensajes y botones extra */
-        .message-area {
-            background: #1a1a1b;
-            border-radius: 16px;
-            padding: 12px;
-            margin: 10px 0;
-            text-align: center;
-        }
-        .error { color: #f87171; }
-        .success { color: #86efac; }
-        .reset-btn {
-            background: #538d4e;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .footer-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .footer-buttons button {
-            flex: 1;
-            background: #2c2c2e;
-        }
-        @media (max-width: 550px) {
-            .tile { font-size: 1.5rem; }
+        .message-area { background: #1a1a1b; border-radius: 16px; padding: 12px; margin: 10px 0; text-align: center; }
+        .players-list { list-style: none; padding: 0; margin: 10px 0; }
+        .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
+        .countdown { font-size: 2rem; text-align: center; margin: 10px 0; font-weight: bold; color: #facc15; }
+        .timer { font-size: 1.2rem; text-align: center; background: #2c2c2e; border-radius: 40px; padding: 8px; margin: 10px 0; }
+        @media (max-width: 700px) {
+            .tile { width: 45px; height: 45px; font-size: 1.5rem; }
             .key { padding: 8px 4px; font-size: 0.8rem; }
         }
     </style>
 </head>
 <body>
-<div class="game-container" id="app">
-    <h1>WORDLE BATTLE</h1>
+<div class="game-container">
+    <div class="main-panel">
+        <h1>⚔️ WORDLE BATTLE ROYALE</h1>
+        <!-- Pantalla de autenticación -->
+        <div id="authScreen" class="auth-card">
+            <h3>Accede para jugar</h3>
+            <input type="text" id="regUser" placeholder="Usuario">
+            <input type="password" id="regPass" placeholder="Contraseña">
+            <button id="registerBtn">Registrarse</button>
+            <input type="text" id="loginUser" placeholder="Usuario">
+            <input type="password" id="loginPass" placeholder="Contraseña">
+            <button id="loginBtn">Iniciar sesión</button>
+            <div id="authMsg" class="message-area"></div>
+        </div>
 
-    <!-- Pantalla de login -->
-    <div id="authScreen" class="auth-card">
-        <h3 style="text-align:center;">Accede para jugar</h3>
-        <input type="text" id="regUser" placeholder="Usuario">
-        <input type="password" id="regPass" placeholder="Contraseña">
-        <button id="registerBtn">Registrarse</button>
-        <input type="text" id="loginUser" placeholder="Usuario">
-        <input type="password" id="loginPass" placeholder="Contraseña">
-        <button id="loginBtn">Iniciar sesión</button>
-        <div id="authMsg" class="message-area"></div>
+        <!-- Pantalla de lobby (tras login) -->
+        <div id="lobbyScreen" style="display:none;">
+            <div class="top-bar">
+                <span>👤 <span id="usernameSpan"></span> <span id="adminSpan" style="background:#facc15; color:#000; padding:2px 8px; border-radius:20px;"></span></span>
+                <button id="logoutBtn" style="width:auto; background:#e74c3c;">Salir</button>
+            </div>
+            <div class="lobby-card">
+                <h3>🎮 Sala multijugador</h3>
+                <button id="createRoomBtn">✨ Crear nueva sala</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <input type="text" id="joinRoomCode" placeholder="Código de sala">
+                    <button id="joinRoomBtn" style="width:auto;">Unirse</button>
+                </div>
+                <div id="lobbyMsg" class="message-area"></div>
+            </div>
+        </div>
+
+        <!-- Pantalla de juego (dentro de una sala) -->
+        <div id="gameScreen" style="display:none;">
+            <div class="top-bar">
+                <span>🎲 Sala: <strong id="roomCodeSpan"></strong></span>
+                <span>👥 <span id="playerCount">0</span> jugadores</span>
+                <button id="leaveRoomBtn" style="width:auto; background:#e74c3c;">Salir</button>
+            </div>
+            <div id="countdownDisplay" class="countdown"></div>
+            <div id="roundTimer" class="timer"></div>
+            <div id="board" class="board"></div>
+            <div id="keyboard" class="keyboard"></div>
+            <div id="gameMsg" class="message-area"></div>
+            <button id="resetGameBtn" style="display:none;">🔄 Nueva ronda (admin)</button>
+        </div>
     </div>
 
-    <!-- Pantalla del juego (visible tras login) -->
-    <div id="gameScreen" style="display:none;">
-        <div class="top-bar">
-            <span class="user-info">👤 <span id="usernameSpan"></span><span id="adminSpan" class="admin-badge"></span></span>
-            <button id="logoutBtn" class="icon-btn" title="Cerrar sesión">🚪</button>
-        </div>
-        <div class="difficulty-bar">
-            <select id="difficultySelect">
-                <option value="easy">🍃 Fácil (4)</option>
-                <option value="normal" selected>⚡ Normal (5)</option>
-                <option value="hard">🔥 Difícil (6)</option>
-            </select>
-            <button id="newGameBtn">Nueva partida</button>
-        </div>
-
-        <!-- Tablero Wordle -->
-        <div id="board" class="board"></div>
-
-        <!-- Teclado virtual -->
-        <div id="keyboard" class="keyboard"></div>
-
-        <!-- Mensajes y controles -->
-        <div id="gameMsg" class="message-area"></div>
-        <button id="resetGameBtn" class="reset-btn" style="display:none;">🔄 Reiniciar ronda (Admin)</button>
-        <div class="footer-buttons">
-            <button id="historyBtn">📜 Mi historial</button>
-            <button id="leaderboardBtn">🏆 Ranking</button>
-        </div>
-        <div id="infoPanel" style="margin-top: 15px;"></div>
+    <!-- Panel lateral con lista de jugadores -->
+    <div class="side-panel" id="sidePanel" style="display:none;">
+        <h3>🏆 Jugadores en sala</h3>
+        <ul id="playersList" class="players-list"></ul>
+        <div id="roundResult" class="message-area"></div>
     </div>
 </div>
 
@@ -260,31 +130,36 @@
     const API_BASE = window.location.origin;
     let token = null;
     let connection = null;
-    let currentGameId = null;
-    let currentWordLength = 5;      // se actualiza según dificultad
-    let currentAttempts = [];        // lista de intentos (cada uno: array de letras con estado)
+    let currentRoom = null;
+    let currentWordLength = 5;
     let maxAttempts = 6;
-    let gameActive = true;
+    let currentAttempts = [];      // intentos del jugador local
+    let gameActive = false;
     let isAdmin = false;
-    let currentWordMask = "";        // la palabra con guiones para mostrar (no se usa en Wordle, pero para estado)
+    let roundActive = false;
+    let roundTimerInterval = null;
+    let countdownInterval = null;
 
-    // Elementos DOM
+    // DOM elements
     const authScreen = document.getElementById('authScreen');
+    const lobbyScreen = document.getElementById('lobbyScreen');
     const gameScreen = document.getElementById('gameScreen');
+    const sidePanel = document.getElementById('sidePanel');
     const boardDiv = document.getElementById('board');
     const keyboardDiv = document.getElementById('keyboard');
     const gameMsgDiv = document.getElementById('gameMsg');
-    const resetAdminBtn = document.getElementById('resetGameBtn');
+    const playersListUl = document.getElementById('playersList');
+    const roomCodeSpan = document.getElementById('roomCodeSpan');
+    const playerCountSpan = document.getElementById('playerCount');
+    const countdownDisplay = document.getElementById('countdownDisplay');
+    const roundTimerSpan = document.getElementById('roundTimer');
     const usernameSpan = document.getElementById('usernameSpan');
     const adminSpan = document.getElementById('adminSpan');
-    const difficultySelect = document.getElementById('difficultySelect');
 
     // Helper mensajes
     function showMsg(container, text, isError = false) {
-        container.innerHTML = `<div class="${isError ? 'error' : 'success'}">${text}</div>`;
-        setTimeout(() => {
-            if (container.innerHTML === `<div class="${isError ? 'error' : 'success'}">${text}</div>`) container.innerHTML = '';
-        }, 4000);
+        container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
+        setTimeout(() => { if (container.innerHTML === `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`) container.innerHTML = ''; }, 4000);
     }
 
     // -------------------- AUTENTICACIÓN --------------------
@@ -299,7 +174,7 @@
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
-            if (data.success) showMsg(document.getElementById('authMsg'), '✅ Registro OK. Ahora inicia sesión.', false);
+            if (data.success) showMsg(document.getElementById('authMsg'), '✅ Registro OK. Inicia sesión.', false);
             else showMsg(document.getElementById('authMsg'), `❌ ${data.message}`, true);
         } catch { showMsg(document.getElementById('authMsg'), 'Error de conexión', true); }
     }
@@ -325,9 +200,8 @@
                 usernameSpan.innerText = username;
                 adminSpan.innerText = isAdmin ? 'Admin' : '';
                 authScreen.style.display = 'none';
-                gameScreen.style.display = 'block';
+                lobbyScreen.style.display = 'block';
                 connectSignalR();
-                loadLeaderboard();
             } else {
                 showMsg(document.getElementById('authMsg'), `❌ ${data.message}`, true);
             }
@@ -339,13 +213,50 @@
         if (connection) connection.stop();
         token = null;
         authScreen.style.display = 'block';
+        lobbyScreen.style.display = 'none';
         gameScreen.style.display = 'none';
-        currentGameId = null;
+        sidePanel.style.display = 'none';
+        currentRoom = null;
     }
 
     document.getElementById('registerBtn').onclick = register;
     document.getElementById('loginBtn').onclick = login;
     document.getElementById('logoutBtn').onclick = logout;
+    document.getElementById('leaveRoomBtn')?.addEventListener('click', () => {
+        if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
+        gameScreen.style.display = 'none';
+        sidePanel.style.display = 'none';
+        lobbyScreen.style.display = 'block';
+        currentRoom = null;
+    });
+
+    // -------------------- LOBBY Y SALAS --------------------
+    document.getElementById('createRoomBtn').onclick = async () => {
+        if (connection) {
+            const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            await connection.invoke("CreateRoom", roomCode);
+            currentRoom = roomCode;
+            roomCodeSpan.innerText = roomCode;
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            sidePanel.style.display = 'block';
+            showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando jugadores...`, false);
+        }
+    };
+
+    document.getElementById('joinRoomBtn').onclick = async () => {
+        const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+        if (!code) return showMsg(document.getElementById('lobbyMsg'), 'Ingresa código', true);
+        if (connection) {
+            await connection.invoke("JoinRoom", code);
+            currentRoom = code;
+            roomCodeSpan.innerText = code;
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            sidePanel.style.display = 'block';
+            showMsg(gameMsgDiv, `Unido a sala ${code}`, false);
+        }
+    };
 
     // -------------------- TABLERO Y TECLADO --------------------
     function buildBoard(length) {
@@ -365,7 +276,6 @@
     }
 
     function updateBoardFromAttempts(attemptsList) {
-        // attemptsList: array de objetos con 'guess' (string) y 'result' (array de {letter, status})
         // Limpiar todas las filas
         for (let i = 0; i < maxAttempts; i++) {
             for (let j = 0; j < currentWordLength; j++) {
@@ -376,7 +286,7 @@
                 }
             }
         }
-        // Rellenar intentos ya hechos
+        // Rellenar intentos
         for (let idx = 0; idx < attemptsList.length; idx++) {
             const attempt = attemptsList[idx];
             const guess = attempt.guess;
@@ -393,12 +303,10 @@
                 }
             }
         }
-        // Actualizar teclado virtual
-        updateKeyboard(attemptsList);
+        updateKeyboardFromAttempts(attemptsList);
     }
 
-    function updateKeyboard(attemptsList) {
-        // Recopilar estados de todas las letras
+    function updateKeyboardFromAttempts(attemptsList) {
         const keyState = {};
         for (const attempt of attemptsList) {
             const guess = attempt.guess;
@@ -407,14 +315,10 @@
                 const letter = guess[i].toUpperCase();
                 const status = result[i].status;
                 if (!keyState[letter]) keyState[letter] = status;
-                else {
-                    // Prioridad: correct > present > absent
-                    if (status === 'correct') keyState[letter] = 'correct';
-                    else if (status === 'present' && keyState[letter] !== 'correct') keyState[letter] = 'present';
-                }
+                else if (status === 'correct') keyState[letter] = 'correct';
+                else if (status === 'present' && keyState[letter] !== 'correct') keyState[letter] = 'present';
             }
         }
-        // Aplicar clases a las teclas
         document.querySelectorAll('.key').forEach(key => {
             const letter = key.getAttribute('data-key');
             if (letter && keyState[letter]) {
@@ -448,56 +352,41 @@
         }
     }
 
+    // Manejo de teclado local (envía intento al servidor)
+    let currentLocalGuess = '';
     function handleKeyPress(key) {
-        if (!gameActive) {
-            showMsg(gameMsgDiv, 'La partida ya terminó. Inicia una nueva.', true);
-            return;
-        }
-        if (currentAttempts.length >= maxAttempts) return;
+        if (!roundActive || !gameActive) return;
         const currentRow = currentAttempts.length;
-        const currentGuess = currentAttempts[currentRow] ? currentAttempts[currentRow].guess : '';
+        if (currentRow >= maxAttempts) return;
         if (key === 'enter') {
-            if (currentGuess.length === currentWordLength) {
-                // Enviar intento al backend (vía SignalR o REST? Usamos SignalR para que todos vean)
-                connection.invoke("GuessWord", currentGuess);
+            if (currentLocalGuess.length === currentWordLength) {
+                // Enviar intento al servidor (SignalR)
+                connection.invoke("MakeGuess", currentRoom, currentLocalGuess);
+                currentLocalGuess = '';
             } else {
                 showMsg(gameMsgDiv, `Debes ingresar ${currentWordLength} letras`, true);
             }
         } else if (key === 'backspace') {
-            if (currentGuess.length > 0) {
-                const newGuess = currentGuess.slice(0, -1);
-                // Actualizar localmente la fila (solo visual, el estado real se actualizará cuando llegue respuesta del server)
-                updateLocalRow(currentRow, newGuess);
-                // Actualizar intento local (temporal) - será reemplazado por el server
-                if (currentAttempts[currentRow]) currentAttempts[currentRow].guess = newGuess;
-                else currentAttempts.push({ guess: newGuess, result: [] });
-                // Mostrar en tablero
-                for (let i=0; i<currentWordLength; i++) {
-                    const tile = document.getElementById(`tile-${currentRow}-${i}`);
-                    if (tile) tile.innerText = i < newGuess.length ? newGuess[i].toUpperCase() : '';
-                }
+            if (currentLocalGuess.length > 0) {
+                currentLocalGuess = currentLocalGuess.slice(0, -1);
+                updateLocalRow(currentRow, currentLocalGuess);
             }
         } else {
-            // letra
-            if (currentGuess.length < currentWordLength) {
-                const newGuess = currentGuess + key;
-                updateLocalRow(currentRow, newGuess);
-                if (currentAttempts[currentRow]) currentAttempts[currentRow].guess = newGuess;
-                else currentAttempts.push({ guess: newGuess, result: [] });
-                const tile = document.getElementById(`tile-${currentRow}-${currentGuess.length}`);
-                if (tile) tile.innerText = key.toUpperCase();
+            if (currentLocalGuess.length < currentWordLength) {
+                currentLocalGuess += key;
+                updateLocalRow(currentRow, currentLocalGuess);
             }
         }
     }
 
     function updateLocalRow(rowIndex, guess) {
-        for (let i=0; i<currentWordLength; i++) {
+        for (let i = 0; i < currentWordLength; i++) {
             const tile = document.getElementById(`tile-${rowIndex}-${i}`);
             if (tile) tile.innerText = i < guess.length ? guess[i].toUpperCase() : '';
         }
     }
 
-    // -------------------- SIGNALR --------------------
+    // -------------------- SIGNALR (multijugador) --------------------
     function connectSignalR() {
         if (connection) connection.stop();
         connection = new signalR.HubConnectionBuilder()
@@ -505,183 +394,150 @@
             .withAutomaticReconnect()
             .build();
 
-        connection.on("GameState", (state) => {
-            // state tiene: maskedWord, attemptsLeft, wrongGuesses, guessedLetters, gameActive, winner
-            // Pero nosotros necesitamos los intentos con sus resultados. El backend actual no envía la lista de intentos.
-            // Para Wordle necesitamos los intentos previos. Esto es un problema.
-            // Como simplificación, usaremos solo el estado para saber si el juego está activo y la palabra oculta.
-            // Pero para mostrar los intentos, necesitamos que el backend guarde el historial de intentos por partida.
-            // Como el backend actual (GameLogic) no guarda intentos individuales, tendremos que modificar el backend para enviar la lista de intentos.
-            // Por ahora, para que funcione, usaremos el endpoint REST para obtener los intentos de la partida actual.
-            // Pero eso es más complejo. Dado el tiempo, proporcionaré una versión funcional usando el endpoint /games/{id}/attempts.
-            // Sin embargo, para no alargar, voy a simplificar: el frontend enviará intentos por REST y actualizará localmente.
-            // Pero perderíamos el multijugador. El usuario quiere multijugador estilo Wordle, pero es más avanzado.
-            // Dada la complejidad, le entregaré una versión final que funcione como Wordle individual (sin SignalR) usando solo REST.
-            // Así al menos tendrá un juego jugable y bonito. El multijugador se puede agregar después.
+        // Eventos de sala
+        connection.on("RoomCreated", (roomCode) => {
+            // No hacer nada, ya se creó
         });
-        connection.start().catch(console.error);
+        connection.on("RoomJoined", (roomCode, players) => {
+            currentRoom = roomCode;
+            updatePlayersList(players);
+        });
+        connection.on("PlayersUpdate", (players) => {
+            updatePlayersList(players);
+        });
+        connection.on("RoundStarting", (countdown) => {
+            startCountdown(countdown);
+        });
+        connection.on("RoundStarted", (wordLength, timeLimit) => {
+            startRound(wordLength, timeLimit);
+        });
+        connection.on("GuessResult", (guessResult) => {
+            // guessResult contiene: { success, guess, resultArray, attemptsLeft, gameCompleted, won, word }
+            if (guessResult.success) {
+                const attempt = { guess: guessResult.guess, result: guessResult.resultArray };
+                currentAttempts.push(attempt);
+                updateBoardFromAttempts(currentAttempts);
+                if (guessResult.gameCompleted) {
+                    gameActive = false;
+                    roundActive = false;
+                    if (guessResult.won) showMsg(gameMsgDiv, `🎉 ¡Adivinaste! 🎉`, false);
+                    else showMsg(gameMsgDiv, `😞 Perdiste. La palabra era: ${guessResult.word}`, true);
+                    clearTimers();
+                } else {
+                    gameActive = true;
+                }
+            } else {
+                showMsg(gameMsgDiv, guessResult.error || 'Intento inválido', true);
+            }
+        });
+        connection.on("RoundEnded", (winner, word) => {
+            roundActive = false;
+            gameActive = false;
+            clearTimers();
+            if (winner) showMsg(gameMsgDiv, `🏆 ${winner} ha ganado la ronda! Palabra: ${word}`, false);
+            else showMsg(gameMsgDiv, `⏰ Tiempo agotado. Nadie adivinó. Palabra: ${word}`, true);
+            document.getElementById('resetGameBtn').style.display = isAdmin ? 'block' : 'none';
+        });
+        connection.on("PlayerEliminated", (playerName) => {
+            showMsg(gameMsgDiv, `💀 ${playerName} ha sido eliminado`, true);
+        });
+        connection.on("Error", (err) => showMsg(gameMsgDiv, err, true));
+
+        connection.start().catch(err => console.error("SignalR error:", err));
     }
 
-    // -------------------- NUEVA PARTIDA (REST) --------------------
-    async function startNewGame() {
-        const difficulty = difficultySelect.value;
-        let length = 5;
-        if (difficulty === 'easy') length = 4;
-        else if (difficulty === 'hard') length = 6;
-        currentWordLength = length;
+    function updatePlayersList(players) {
+        playersListUl.innerHTML = '';
+        playerCountSpan.innerText = players.length;
+        players.forEach(p => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${p.name}</span> <span>❤️ ${p.attemptsLeft} | ${p.status}</span>`;
+            playersListUl.appendChild(li);
+        });
+    }
+
+    function startCountdown(seconds) {
+        let remaining = seconds;
+        countdownDisplay.style.display = 'block';
+        countdownDisplay.innerText = `Comienza en ${remaining}s`;
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(countdownInterval);
+                countdownDisplay.style.display = 'none';
+            } else {
+                countdownDisplay.innerText = `Comienza en ${remaining}s`;
+            }
+        }, 1000);
+    }
+
+    function startRound(wordLength, timeLimit) {
+        currentWordLength = wordLength;
         maxAttempts = 6;
-        buildBoard(length);
+        buildBoard(wordLength);
         currentAttempts = [];
+        currentLocalGuess = '';
         gameActive = true;
-        resetAdminBtn.style.display = isAdmin ? 'block' : 'none';
-        // Llamar a la API para iniciar partida
-        try {
-            const res = await fetch(`${API_BASE}/api/Games`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: null }) // opcional
-            });
-            const data = await res.json();
-            if (data.success) {
-                currentGameId = data.data.gameId;
-                showMsg(gameMsgDiv, `Nueva partida (${difficulty}) ¡Adivina la palabra!`, false);
-                // No tenemos la palabra, los intentos se manejarán con el endpoint de intentos
-            } else {
-                showMsg(gameMsgDiv, 'Error al iniciar partida', true);
+        roundActive = true;
+        // Iniciar temporizador de ronda
+        let timeLeft = timeLimit;
+        roundTimerSpan.innerText = `⏱️ ${timeLeft}s`;
+        if (roundTimerInterval) clearInterval(roundTimerInterval);
+        roundTimerInterval = setInterval(() => {
+            if (!roundActive) return;
+            timeLeft--;
+            roundTimerSpan.innerText = `⏱️ ${timeLeft}s`;
+            if (timeLeft <= 0) {
+                clearInterval(roundTimerInterval);
+                // El servidor también manejará el fin de ronda, pero lo indicamos localmente
+                if (roundActive) showMsg(gameMsgDiv, '⏰ Tiempo agotado', true);
             }
-        } catch (err) { showMsg(gameMsgDiv, 'Error de conexión', true); }
+        }, 1000);
+        document.getElementById('resetGameBtn').style.display = 'none';
+        showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra', false);
     }
 
-    async function makeGuess(guessWord) {
-        if (!currentGameId) return;
-        try {
-            const res = await fetch(`${API_BASE}/api/Games/${currentGameId}/attempts`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ guess: guessWord })
-            });
-            const data = await res.json();
-            if (!data.success) {
-                showMsg(gameMsgDiv, data.message || 'Palabra inválida', true);
-                return;
-            }
-            // data.data.result es un string JSON con el resultado
-            const resultArray = JSON.parse(data.data.result); // [{letter, status}]
-            const attemptObj = { guess: guessWord, result: resultArray };
-            currentAttempts.push(attemptObj);
-            updateBoardFromAttempts(currentAttempts);
-            if (data.data.gameCompleted) {
-                gameActive = false;
-                if (data.data.won) showMsg(gameMsgDiv, '🎉 ¡Ganaste! 🎉', false);
-                else showMsg(gameMsgDiv, `😞 Perdiste. La palabra era: ${data.data.word || '??'}`, true);
-                resetAdminBtn.style.display = isAdmin ? 'block' : 'block';
-            } else {
-                // Habilitar siguiente intento
-                gameActive = true;
-            }
-            // Actualizar intentos restantes (opcional)
-            if (data.data.attemptsLeft !== undefined) {
-                // Mostrar en algún lado
-            }
-        } catch (err) { showMsg(gameMsgDiv, 'Error al enviar intento', true); }
+    function clearTimers() {
+        if (roundTimerInterval) clearInterval(roundTimerInterval);
+        if (countdownInterval) clearInterval(countdownInterval);
     }
 
-    // Conectar teclado virtual y físico
-    function attachKeyboardEvents() {
-        window.addEventListener('keydown', (e) => {
-            const key = e.key;
-            if (key === 'Enter') handleKeyPress('enter');
-            else if (key === 'Backspace') handleKeyPress('backspace');
-            else if (/^[a-zA-Z]$/.test(key)) handleKeyPress(key.toLowerCase());
-        });
-    }
-
-    // Historial y ranking
-    async function loadHistory() {
-        try {
-            const res = await fetch(`${API_BASE}/api/me/games`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const data = await res.json();
-            const panel = document.getElementById('infoPanel');
-            if (data.success && data.data.length) {
-                let html = '<h3>📜 Mi historial</h3><table><th>Fecha</th><th>Ganó</th><th>Intentos</th><th>Palabra</th></tr>';
-                data.data.forEach(g => {
-                    html += `<tr><td>${new Date(g.createdAt).toLocaleDateString()}</td><td>${g.isWon ? '✅' : '❌'}</td><td>${g.attempts}</td><td>${g.word || '??'}</td></tr>`;
-                });
-                html += '</table>';
-                panel.innerHTML = html;
-            } else panel.innerHTML = '<p>No hay partidas aún.</p>';
-        } catch { panel.innerHTML = '<p>Error.</p>'; }
-    }
-
-    async function loadLeaderboard() {
-        try {
-            const res = await fetch(`${API_BASE}/api/Leaderboard`);
-            const data = await res.json();
-            const panel = document.getElementById('infoPanel');
-            if (data.success && data.data.length) {
-                let html = '<h3>🏆 Ranking</h3><table><tr><th>Usuario</th><th>Victorias</th><th>Promedio</th></tr>';
-                data.data.forEach(e => {
-                    html += `<tr><td>${e.username}</td><td>${e.wins}</td><td>${e.avgAttempts.toFixed(2)}</td></tr>`;
-                });
-                html += '</table>';
-                panel.innerHTML = html;
-            } else panel.innerHTML = '<p>Sin datos aún.</p>';
-        } catch { panel.innerHTML = '<p>Error.</p>'; }
-    }
-
-    document.getElementById('newGameBtn').onclick = startNewGame;
-    document.getElementById('resetGameBtn').onclick = async () => {
-        if (isAdmin && connection) await connection.invoke("ResetGame");
-        else startNewGame(); // reinicio local
-    };
-    document.getElementById('historyBtn').onclick = loadHistory;
-    document.getElementById('leaderboardBtn').onclick = loadLeaderboard;
-
-    // Inicializar
-    buildKeyboard();
-    attachKeyboardEvents();
-    // Override handleKeyPress para usar makeGuess en lugar de SignalR
-    window.handleKeyPress = async (key) => {
-        if (!gameActive) return;
-        const currentRow = currentAttempts.length;
-        if (currentRow >= maxAttempts) return;
-        let currentGuess = currentAttempts[currentRow] ? currentAttempts[currentRow].guess : '';
-        if (key === 'enter') {
-            if (currentGuess.length === currentWordLength) {
-                await makeGuess(currentGuess);
-            } else {
-                showMsg(gameMsgDiv, `Debes ingresar ${currentWordLength} letras`, true);
-            }
-        } else if (key === 'backspace') {
-            if (currentGuess.length > 0) {
-                const newGuess = currentGuess.slice(0, -1);
-                if (currentAttempts[currentRow]) currentAttempts[currentRow].guess = newGuess;
-                else currentAttempts.push({ guess: newGuess, result: [] });
-                updateLocalRow(currentRow, newGuess);
-            }
-        } else {
-            if (currentGuess.length < currentWordLength) {
-                const newGuess = currentGuess + key;
-                if (currentAttempts[currentRow]) currentAttempts[currentRow].guess = newGuess;
-                else currentAttempts.push({ guess: newGuess, result: [] });
-                updateLocalRow(currentRow, newGuess);
-            }
+    // Botón reiniciar (solo admin)
+    document.getElementById('resetGameBtn')?.addEventListener('click', () => {
+        if (isAdmin && connection && currentRoom) {
+            connection.invoke("ForceNewRound", currentRoom);
         }
-    };
+    });
 
-    // Check token al inicio
+    // Teclado físico
+    window.addEventListener('keydown', (e) => {
+        const key = e.key;
+        if (key === 'Enter') handleKeyPress('enter');
+        else if (key === 'Backspace') handleKeyPress('backspace');
+        else if (/^[a-zA-Z]$/.test(key)) handleKeyPress(key.toLowerCase());
+    });
+
+    // Inicializar teclado virtual
+    buildKeyboard();
+
+    // Cargar si hay token guardado
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
         token = savedToken;
         authScreen.style.display = 'none';
-        gameScreen.style.display = 'block';
-        // Intentar obtener datos del usuario (podría faltar, pero se asume)
-        usernameSpan.innerText = 'Usuario';
+        lobbyScreen.style.display = 'block';
         connectSignalR();
-        loadLeaderboard();
+        // Intentar decodificar nombre
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            usernameSpan.innerText = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
+            isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
+            adminSpan.innerText = isAdmin ? 'Admin' : '';
+        } catch(e) {}
     } else {
         authScreen.style.display = 'block';
-        gameScreen.style.display = 'none';
+        lobbyScreen.style.display = 'none';
     }
 </script>
 </body>
