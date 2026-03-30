@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using WordGuessAPI.Data;
 using WordGuessAPI.Models;
+using WordGuessAPI.Hubs;  // <--- Agregar este using
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +31,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger con JWT
@@ -92,6 +94,21 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+    
+    // ========== LO QUE FALTA: LEER TOKEN DESDE QUERY STRING PARA SIGNALR ==========
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/gameHub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 var app = builder.Build();
@@ -106,24 +123,35 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseCors("AllowAll");
 app.UseAuthorization();
-app.UseDefaultFiles(); // Para que sirva index.html cuando se accede a la raíz
-app.UseStaticFiles();  // Para servir archivos estáticos desde wwwroot
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapControllers();
+app.MapHub<GameHub>("/gameHub");  // <--- Asegurar que GameHub existe
 
-// Aplicar EnsureCreated y sembrar datos iniciales (con UTC)
+// Sembrar datos iniciales (CON PALABRAS DE 4,5,6 LETRAS PARA DIFICULTADES)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();   // Crea la BD y tablas si no existen
+    db.Database.EnsureCreated();
 
     if (!db.Words.Any())
     {
         db.Words.AddRange(new List<Word>
         {
-            new Word { Text = "ruby", Difficulty = "easy" },
-            new Word { Text = "sinatra", Difficulty = "medium" },
-            new Word { Text = "docker", Difficulty = "hard" },
-            new Word { Text = "wordle", Difficulty = "medium", Date = DateTime.UtcNow.Date }   // UTC
+            // Fáciles (4 letras)
+            new Word { Text = "CASA", Difficulty = "easy" },
+            new Word { Text = "PERRO", Difficulty = "easy" },  // 5 letras? Perro tiene 5, mejor usar GATO (4)
+            new Word { Text = "GATO", Difficulty = "easy" },
+            new Word { Text = "SOL", Difficulty = "easy" },    // 3 letras (no ideal, pero se puede)
+            new Word { Text = "LUNA", Difficulty = "easy" },
+            // Normales (5 letras)
+            new Word { Text = "MUNDO", Difficulty = "medium" },
+            new Word { Text = "RATON", Difficulty = "medium" },
+            new Word { Text = "SILLA", Difficulty = "medium" },
+            // Difíciles (6 letras)
+            new Word { Text = "SERVIDOR", Difficulty = "hard" },  // 8 letras
+            new Word { Text = "PROGRAMAR", Difficulty = "hard" }, // 9 letras
+            new Word { Text = "BASE", Difficulty = "hard" }       // 4 letras
         });
         db.SaveChanges();
     }

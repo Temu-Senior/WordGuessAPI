@@ -22,6 +22,7 @@ public class GamesController : ControllerBase
     public class StartGameRequest
     {
         public string? Date { get; set; }
+        public int? Length { get; set; }
     }
 
     public class AttemptRequest

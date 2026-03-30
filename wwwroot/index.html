@@ -2,295 +2,566 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WordGuess</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BattleGuessRoyale | WordGuess Multijugador</title>
+    <!-- SignalR cliente -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; }
-        input, button { margin: 5px; padding: 8px; }
-        button { cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
-        button:hover { background-color: #45a049; }
-        .error { color: red; }
-        .success { color: green; }
-        .game-panel { border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #fafafa; }
-        .result-letter { display: inline-block; width: 40px; height: 40px; line-height: 40px; text-align: center; margin: 2px; font-weight: bold; border-radius: 4px; }
-        .correct { background-color: #6aaa64; color: white; }
-        .present { background-color: #c9b458; color: white; }
-        .absent { background-color: #787c7e; color: white; }
-        .game-completed { font-weight: bold; margin: 10px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Tarjetas */
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border-radius: 32px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            width: 100%;
+            max-width: 700px;
+            transition: all 0.3s ease;
+            color: #fff;
+        }
+
+        h1, h2, h3 {
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #FFD166, #F4A261);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        hr {
+            border-color: rgba(255,255,255,0.2);
+            margin: 20px 0;
+        }
+
+        /* Formularios */
+        input, select, button {
+            width: 100%;
+            padding: 12px 16px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 60px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        input, select {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.3);
+            border-color: #FFD166;
+        }
+
+        button {
+            background: linear-gradient(135deg, #FFD166, #F4A261);
+            color: #1e1e2f;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            box-shadow: none;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        /* Mensajes */
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .error {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 4px solid #e74c3c;
+            color: #ffb3b3;
+        }
+
+        .success {
+            background: rgba(46, 204, 113, 0.2);
+            border-left: 4px solid #2ecc71;
+            color: #b3ffd9;
+        }
+
+        /* Área de juego */
+        .game-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 24px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .word-mask {
+            font-size: 2.2rem;
+            letter-spacing: 12px;
+            font-family: monospace;
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            padding: 20px;
+            border-radius: 20px;
+            margin: 15px 0;
+            word-break: break-all;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 10px 15px;
+            flex: 1;
+            text-align: center;
+        }
+
+        .letter-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .letter-badge {
+            background: #2c3e50;
+            padding: 6px 12px;
+            border-radius: 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        /* Tablas */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        th {
+            background: rgba(255,255,255,0.1);
+            font-weight: 600;
+        }
+
+        /* Grupos de botones */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .flex {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        @media (max-width: 600px) {
+            .card { padding: 20px; }
+            .word-mask { font-size: 1.5rem; letter-spacing: 6px; }
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>WordGuess 🎮</h1>
+<div class="card" id="app">
+    <h1>⚔️ BattleGuessRoyale</h1>
+    <p style="margin-bottom: 20px; opacity:0.8;">Multijugador en tiempo real – hasta 100 jugadores</p>
 
     <!-- Sección de autenticación -->
     <div id="auth-section">
-        <h2>Registro / Login</h2>
-        <input type="text" id="reg-username" placeholder="Usuario">
-        <input type="password" id="reg-password" placeholder="Contraseña">
-        <button onclick="register()">Registrar</button>
-        <br>
-        <input type="text" id="login-username" placeholder="Usuario">
-        <input type="password" id="login-password" placeholder="Contraseña">
-        <button onclick="login()">Iniciar sesión</button>
-        <div id="auth-message"></div>
+        <h2>🎭 Acceso</h2>
+        <div class="flex" style="flex-direction: column;">
+            <input type="text" id="reg-username" placeholder="Usuario (3-20 caracteres)">
+            <input type="password" id="reg-password" placeholder="Contraseña (mínimo 6)">
+            <button id="register-btn">📝 Registrarse</button>
+        </div>
+        <div class="flex" style="flex-direction: column; margin-top: 15px;">
+            <input type="text" id="login-username" placeholder="Usuario">
+            <input type="password" id="login-password" placeholder="Contraseña">
+            <button id="login-btn">🔐 Iniciar sesión</button>
+        </div>
+        <div id="auth-message" class="message"></div>
     </div>
 
-    <!-- Sección principal (visible solo después de login) -->
-    <div id="main-section" style="display:none;">
-        <h2>Bienvenido, <span id="username-display"></span> (admin: <span id="admin-badge"></span>)</h2>
-        <button onclick="logout()">Cerrar sesión</button>
+    <!-- Sección principal del juego (visible tras login) -->
+    <div id="game-section" style="display: none;">
+        <div class="flex" style="justify-content: space-between; align-items: center;">
+            <h2>👋 Hola, <span id="username-display"></span> <span id="admin-badge" style="font-size:0.8rem; background:#f39c12; padding:2px 8px; border-radius:40px;"></span></h2>
+            <button id="logout-btn" class="btn-secondary">🚪 Salir</button>
+        </div>
         <hr>
 
-        <div>
-            <h3>Jugar</h3>
-            <button onclick="startGame()">Iniciar nueva partida</button>
-            <div id="game-info" class="game-panel" style="display:none;">
-                <p><strong>Partida ID:</strong> <span id="game-id"></span></p>
-                <p><strong>Intentos restantes:</strong> <span id="attempts-left"></span></p>
-                <div>
-                    <input type="text" id="guess-input" placeholder="Escribe tu palabra" style="width:200px;">
-                    <button onclick="makeAttempt()">Intentar</button>
-                </div>
-                <div id="result-container"></div>
-                <div id="game-status"></div>
+        <!-- Dificultad y control -->
+        <div class="game-panel">
+            <h3>🎲 Nueva partida</h3>
+            <div class="flex">
+                <select id="difficulty-select" style="flex:2;">
+                    <option value="easy">🍃 Fácil (4 letras)</option>
+                    <option value="normal" selected>⚡ Normal (5 letras)</option>
+                    <option value="hard">🔥 Difícil (6 letras)</option>
+                </select>
+                <button id="start-game-btn" style="flex:1;">▶️ Iniciar</button>
             </div>
         </div>
 
-        <hr>
-        <button onclick="showHistory()">Ver mi historial</button>
-        <div id="history-container"></div>
+        <!-- Estado del juego en tiempo real -->
+        <div id="live-game" style="display: none;">
+            <div class="word-mask" id="word-mask">_ _ _ _ _</div>
+            <div class="stats">
+                <div class="stat-card">🎯 Intentos restantes: <strong id="attempts-left">6</strong></div>
+                <div class="stat-card">❌ Letras erróneas: <span id="wrong-letters-list"></span></div>
+            </div>
+            <div class="stat-card">✅ Letras acertadas: <span id="guessed-letters-list"></span></div>
+
+            <div class="flex" style="margin-top: 20px;">
+                <input type="text" id="letter-input" maxlength="1" placeholder="Letra" style="flex:1;">
+                <button id="guess-letter-btn">🔤 Adivinar letra</button>
+            </div>
+            <div class="flex" style="margin-top: 10px;">
+                <input type="text" id="word-input" placeholder="Palabra completa" style="flex:2;">
+                <button id="guess-word-btn">📖 Adivinar palabra</button>
+            </div>
+
+            <div id="game-message" class="message"></div>
+            <button id="reset-game-btn" style="display: none; background:#e74c3c;">🔄 Reiniciar juego (solo admin)</button>
+        </div>
 
         <hr>
-        <h3>Tabla de posiciones</h3>
-        <div id="leaderboard-container"></div>
+        <div class="button-group">
+            <button id="history-btn" class="btn-secondary">📜 Mi historial</button>
+            <button id="leaderboard-btn" class="btn-secondary">🏆 Tabla de posiciones</button>
+        </div>
+        <div id="info-container" style="margin-top: 20px;"></div>
     </div>
 </div>
 
 <script>
-    const API_BASE = 'https://wordguessapi-1.onrender.com/api';
+    // ================= CONFIGURACIÓN =================
+    // Cambia la URL base si tu backend está en otro puerto o dominio
+    const API_BASE = window.location.origin;  // Si el frontend y backend están en el mismo origen (wwwroot)
+    // Si el backend está en otro puerto (ej. 5000 local), descomenta la siguiente línea y comenta la de arriba:
+    // const API_BASE = 'http://localhost:5000';
 
-    // Helper para peticiones autenticadas
+    let token = null;
+    let connection = null;
+    let currentGameActive = false;
+    let isAdmin = false;
+
+    // Elementos DOM
+    const authSection = document.getElementById('auth-section');
+    const gameSection = document.getElementById('game-section');
+    const liveGameDiv = document.getElementById('live-game');
+    const usernameSpan = document.getElementById('username-display');
+    const adminBadge = document.getElementById('admin-badge');
+    const authMessageDiv = document.getElementById('auth-message');
+    const wordMaskSpan = document.getElementById('word-mask');
+    const attemptsLeftSpan = document.getElementById('attempts-left');
+    const wrongLettersSpan = document.getElementById('wrong-letters-list');
+    const guessedLettersSpan = document.getElementById('guessed-letters-list');
+    const gameMessageDiv = document.getElementById('game-message');
+    const resetAdminBtn = document.getElementById('reset-game-btn');
+
+    // ================= AUXILIARES =================
+    function showMessage(container, text, isError = true) {
+        container.innerHTML = `<div class="message ${isError ? 'error' : 'success'}">${text}</div>`;
+        setTimeout(() => { if (container.innerHTML === `<div class="message ${isError ? 'error' : 'success'}">${text}</div>`) container.innerHTML = ''; }, 5000);
+    }
+
     async function authFetch(url, options = {}) {
-        const token = localStorage.getItem('token');
-        options.headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-        const response = await fetch(url, options);
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                ...options.headers
+            }
+        });
         if (response.status === 401) {
-            alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+            showMessage(authMessageDiv, 'Sesión expirada. Vuelve a iniciar sesión.', true);
             logout();
         }
         return response;
     }
 
-    // Registrar usuario
+    // ================= AUTENTICACIÓN =================
     async function register() {
-        const username = document.getElementById('reg-username').value;
-        const password = document.getElementById('reg-password').value;
-        const messageDiv = document.getElementById('auth-message');
-
+        const username = document.getElementById('reg-username').value.trim();
+        const password = document.getElementById('reg-password').value.trim();
+        if (!username || !password) return showMessage(authMessageDiv, 'Completa ambos campos', true);
         try {
-            const res = await fetch(`${API_BASE}/Auth/register`, {
+            const res = await fetch(`${API_BASE}/api/Auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
-            if (data.success) {
-                messageDiv.innerHTML = `<span class="success">✅ Registro exitoso. Ahora inicia sesión.</span>`;
-            } else {
-                messageDiv.innerHTML = `<span class="error">❌ ${data.message}</span>`;
-            }
-        } catch (err) {
-            messageDiv.innerHTML = `<span class="error">Error de conexión</span>`;
-        }
+            if (data.success) showMessage(authMessageDiv, '✅ Registro exitoso. Ahora inicia sesión.', false);
+            else showMessage(authMessageDiv, `❌ ${data.message}`, true);
+        } catch (err) { showMessage(authMessageDiv, 'Error de conexión', true); }
     }
 
-    // Login
     async function login() {
-        const username = document.getElementById('login-username').value;
-        const password = document.getElementById('login-password').value;
-        const messageDiv = document.getElementById('auth-message');
-
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+        if (!username || !password) return showMessage(authMessageDiv, 'Completa ambos campos', true);
         try {
-            const res = await fetch(`${API_BASE}/Auth/login`, {
+            const res = await fetch(`${API_BASE}/api/Auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
             if (data.success) {
-                localStorage.setItem('token', data.data.token);
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('main-section').style.display = 'block';
-                document.getElementById('username-display').innerText = username;
-                // Determinar si es admin (podríamos obtenerlo del token)
-                // Por ahora lo dejamos simple
-                document.getElementById('admin-badge').innerText = '';
-                // Cargar leaderboard y mostrar info
+                token = data.data.token;
+                localStorage.setItem('token', token);
+                // Decodificar token para saber si es admin
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
+                } catch(e) { isAdmin = false; }
+                usernameSpan.innerText = username;
+                adminBadge.innerText = isAdmin ? '👑 Admin' : '';
+                authSection.style.display = 'none';
+                gameSection.style.display = 'block';
+                connectSignalR();
                 loadLeaderboard();
             } else {
-                messageDiv.innerHTML = `<span class="error">❌ ${data.message}</span>`;
+                showMessage(authMessageDiv, `❌ ${data.message}`, true);
             }
-        } catch (err) {
-            messageDiv.innerHTML = `<span class="error">Error de conexión</span>`;
-        }
+        } catch (err) { showMessage(authMessageDiv, 'Error de conexión', true); }
     }
 
-    // Logout
     function logout() {
         localStorage.removeItem('token');
-        document.getElementById('auth-section').style.display = 'block';
-        document.getElementById('main-section').style.display = 'none';
-        document.getElementById('game-info').style.display = 'none';
-        document.getElementById('history-container').innerHTML = '';
-        document.getElementById('leaderboard-container').innerHTML = '';
-        document.getElementById('auth-message').innerHTML = '';
+        if (connection) connection.stop();
+        token = null;
+        authSection.style.display = 'block';
+        gameSection.style.display = 'none';
+        liveGameDiv.style.display = 'none';
+        document.getElementById('info-container').innerHTML = '';
+        authMessageDiv.innerHTML = '';
     }
 
-    // Iniciar partida
+    // ================= SIGNALR =================
+    function connectSignalR() {
+        if (connection) connection.stop();
+        connection = new signalR.HubConnectionBuilder()
+            .withUrl(`${API_BASE}/gameHub?access_token=${token}`)
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("GameState", (state) => updateGameUI(state));
+        connection.on("GameUpdate", (update) => updateGameUI(update));
+        connection.on("GameReset", (state) => {
+            updateGameUI(state);
+            showMessage(gameMessageDiv, '🔄 ¡Nueva ronda! Todos pueden jugar de nuevo.', false);
+        });
+        connection.on("GameOver", (winner, word) => {
+            if (winner) showMessage(gameMessageDiv, `🏆 ¡${winner} ha adivinado la palabra "${word}"! 🎉`, false);
+            else showMessage(gameMessageDiv, `😞 Nadie adivinó. La palabra era: ${word}`, true);
+            resetAdminBtn.style.display = isAdmin ? 'block' : 'none';
+        });
+        connection.on("Error", (errMsg) => showMessage(gameMessageDiv, errMsg, true));
+
+        connection.start()
+            .then(() => console.log("SignalR conectado"))
+            .catch(err => console.error("SignalR error:", err));
+    }
+
+    function updateGameUI(state) {
+        if (!state) return;
+        liveGameDiv.style.display = 'block';
+        wordMaskSpan.innerText = state.maskedWord || "???";
+        attemptsLeftSpan.innerText = state.attemptsLeft ?? 6;
+        wrongLettersSpan.innerText = (state.wrongGuesses || []).join(', ') || '—';
+        guessedLettersSpan.innerText = (state.guessedLetters || []).join(', ') || '—';
+        if (!state.gameActive) {
+            document.getElementById('letter-input').disabled = true;
+            document.getElementById('word-input').disabled = true;
+            document.getElementById('guess-letter-btn').disabled = true;
+            document.getElementById('guess-word-btn').disabled = true;
+            resetAdminBtn.style.display = isAdmin ? 'block' : 'none';
+        } else {
+            document.getElementById('letter-input').disabled = false;
+            document.getElementById('word-input').disabled = false;
+            document.getElementById('guess-letter-btn').disabled = false;
+            document.getElementById('guess-word-btn').disabled = false;
+            resetAdminBtn.style.display = 'none';
+        }
+    }
+
+    // ================= ACCIONES DEL JUEGO =================
     async function startGame() {
-        try {
-            const res = await authFetch(`${API_BASE}/Games`, { method: 'POST', body: '{}' });
-            const data = await res.json();
-            if (data.success) {
-                const gameId = data.data.gameId;
-                document.getElementById('game-id').innerText = gameId;
-                document.getElementById('attempts-left').innerText = '6';
-                document.getElementById('result-container').innerHTML = '';
-                document.getElementById('game-status').innerHTML = '';
-                document.getElementById('guess-input').value = '';
-                document.getElementById('game-info').style.display = 'block';
-                // Guardar gameId actual en un atributo
-                document.getElementById('game-info').setAttribute('data-game-id', gameId);
-            } else {
-                alert('Error al iniciar partida: ' + data.message);
-            }
-        } catch (err) {
-            alert('Error de conexión');
+        const difficulty = document.getElementById('difficulty-select').value;
+        if (connection && connection.state === signalR.HubConnectionState.Connected) {
+            await connection.invoke("StartGame", difficulty);
+        } else {
+            showMessage(gameMessageDiv, 'No conectado al servidor. Reintentando...', true);
+            connectSignalR();
         }
     }
 
-    // Realizar intento
-    async function makeAttempt() {
-        const gameId = document.getElementById('game-info').getAttribute('data-game-id');
-        if (!gameId) return;
-        const guess = document.getElementById('guess-input').value.trim();
-        if (!guess) return;
-
-        try {
-            const res = await authFetch(`${API_BASE}/Games/${gameId}/attempts`, {
-                method: 'POST',
-                body: JSON.stringify({ guess })
-            });
-            const data = await res.json();
-            if (!data.success) {
-                alert(data.message);
-                return;
-            }
-
-            // Mostrar resultado
-            const result = JSON.parse(data.data.result);
-            const resultContainer = document.getElementById('result-container');
-            // Mostrar cada letra con su color
-            let lettersHtml = '';
-            result.forEach(item => {
-                let statusClass = '';
-                if (item.status === 'correct') statusClass = 'correct';
-                else if (item.status === 'present') statusClass = 'present';
-                else statusClass = 'absent';
-                lettersHtml += `<div class="result-letter ${statusClass}">${item.letter}</div>`;
-            });
-            resultContainer.innerHTML = lettersHtml;
-
-            // Actualizar intentos restantes
-            document.getElementById('attempts-left').innerText = data.data.attemptsLeft;
-
-            if (data.data.gameCompleted) {
-                document.getElementById('game-status').innerHTML = data.data.won ? '🎉 ¡Ganaste! 🎉' : '😢 Perdiste. La palabra era... (puedes verla en historial)';
-                document.getElementById('guess-input').disabled = true;
-                document.querySelector('#game-info button').disabled = true;
-                // Recargar leaderboard e historial
-                loadLeaderboard();
-                if (document.getElementById('history-container').innerHTML !== '') showHistory();
-            } else {
-                document.getElementById('guess-input').value = '';
-            }
-        } catch (err) {
-            alert('Error al enviar intento');
+    function guessLetter() {
+        const letter = document.getElementById('letter-input').value.trim().toUpperCase();
+        if (!letter || letter.length !== 1 || !/^[A-Z]$/.test(letter)) {
+            showMessage(gameMessageDiv, 'Ingresa una sola letra válida', true);
+            return;
         }
+        connection.invoke("GuessLetter", letter);
+        document.getElementById('letter-input').value = '';
     }
 
-    // Mostrar historial de partidas del usuario
+    function guessWord() {
+        const word = document.getElementById('word-input').value.trim().toUpperCase();
+        if (!word || word.length < 3) {
+            showMessage(gameMessageDiv, 'Ingresa una palabra de al menos 3 letras', true);
+            return;
+        }
+        connection.invoke("GuessWord", word);
+        document.getElementById('word-input').value = '';
+    }
+
+    async function resetGame() {
+        if (isAdmin) await connection.invoke("ResetGame");
+        else showMessage(gameMessageDiv, 'Solo administradores pueden reiniciar', true);
+    }
+
+    // ================= HISTORIAL Y LEADERBOARD =================
     async function showHistory() {
         try {
-            const res = await authFetch(`${API_BASE}/me/games`);
+            const res = await authFetch(`${API_BASE}/api/me/games`);
             const data = await res.json();
-            if (data.success && data.data.length > 0) {
-                let html = '<h3>Mi historial</h3><table><tr><th>ID</th><th>Fecha</th><th>Completada</th><th>Ganada</th><th>Intentos</th><th>Palabra</th></tr>';
-                data.data.forEach(game => {
-                    const date = new Date(game.createdAt).toLocaleString();
-                    html += `<tr>
-                        <td>${game.id}</td>
-                        <td>${date}</td>
-                        <td>${game.isCompleted ? 'Sí' : 'No'}</td>
-                        <td>${game.isWon ? 'Sí' : 'No'}</td>
-                        <td>${game.attempts}</td>
-                        <td>${game.word || '???'}</td>
-                    </tr>`;
+            const container = document.getElementById('info-container');
+            if (data.success && data.data.length) {
+                let html = '<h3>📋 Mi historial</h3><table><tr><th>ID</th><th>Fecha</th><th>Ganó</th><th>Intentos</th><th>Palabra</th></tr>';
+                data.data.forEach(g => {
+                    html += `<tr><td>${g.id}</td><td>${new Date(g.createdAt).toLocaleString()}</td><td>${g.isWon ? '✅' : '❌'}</td><td>${g.attempts}</td><td>${g.word || '??'}</td></tr>`;
                 });
                 html += '</table>';
-                document.getElementById('history-container').innerHTML = html;
+                container.innerHTML = html;
             } else {
-                document.getElementById('history-container').innerHTML = '<p>No hay partidas aún.</p>';
+                container.innerHTML = '<p>No hay partidas registradas.</p>';
             }
         } catch (err) {
-            document.getElementById('history-container').innerHTML = '<p>Error cargando historial.</p>';
+            document.getElementById('info-container').innerHTML = '<p>Error al cargar historial.</p>';
         }
     }
 
-    // Cargar leaderboard
     async function loadLeaderboard() {
         try {
-            const res = await fetch(`${API_BASE}/Leaderboard`);
+            const res = await fetch(`${API_BASE}/api/Leaderboard`);
             const data = await res.json();
-            if (data.success && data.data.length > 0) {
-                let html = '<table><tr><th>Usuario</th><th>Victorias</th><th>Promedio intentos</th></tr>';
+            const container = document.getElementById('info-container');
+            if (data.success && data.data.length) {
+                let html = '<h3>🏆 Top jugadores</h3><table><tr><th>Usuario</th><th>Victorias</th><th>Promedio intentos</th></tr>';
                 data.data.forEach(entry => {
-                    html += `<tr>
-                        <td>${entry.username}</td>
-                        <td>${entry.wins}</td>
-                        <td>${entry.avgAttempts.toFixed(2)}</td>
-                    </tr>`;
+                    html += `<tr><td>${entry.username}</td><td>${entry.wins}</td><td>${entry.avgAttempts.toFixed(2)}</td></tr>`;
                 });
                 html += '</table>';
-                document.getElementById('leaderboard-container').innerHTML = html;
+                container.innerHTML = html;
             } else {
-                document.getElementById('leaderboard-container').innerHTML = '<p>Sin datos aún.</p>';
+                container.innerHTML = '<p>Sin datos aún. ¡Juega para aparecer!</p>';
             }
         } catch (err) {
-            document.getElementById('leaderboard-container').innerHTML = '<p>Error cargando leaderboard.</p>';
+            container.innerHTML = '<p>Error al cargar ranking.</p>';
         }
     }
 
-    // Si ya había token al cargar, mostrar directamente la sección principal
-    if (localStorage.getItem('token')) {
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('main-section').style.display = 'block';
-        // Intentar obtener nombre del usuario desde el token (no lo tenemos, lo dejamos vacío)
-        // Cargar leaderboard
+    // ================= EVENTOS =================
+    document.getElementById('register-btn').onclick = register;
+    document.getElementById('login-btn').onclick = login;
+    document.getElementById('logout-btn').onclick = logout;
+    document.getElementById('start-game-btn').onclick = startGame;
+    document.getElementById('guess-letter-btn').onclick = guessLetter;
+    document.getElementById('guess-word-btn').onclick = guessWord;
+    document.getElementById('reset-game-btn').onclick = resetGame;
+    document.getElementById('history-btn').onclick = () => { loadLeaderboard(); showHistory(); };
+    document.getElementById('leaderboard-btn').onclick = loadLeaderboard;
+
+    // Check token al cargar
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+        token = storedToken;
+        // Decodificar nombre y admin
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
+            usernameSpan.innerText = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
+            adminBadge.innerText = isAdmin ? '👑 Admin' : '';
+        } catch(e) { console.warn(e); }
+        authSection.style.display = 'none';
+        gameSection.style.display = 'block';
+        connectSignalR();
         loadLeaderboard();
     } else {
-        document.getElementById('auth-section').style.display = 'block';
-        document.getElementById('main-section').style.display = 'none';
+        authSection.style.display = 'block';
+        gameSection.style.display = 'none';
     }
 </script>
 </body>
