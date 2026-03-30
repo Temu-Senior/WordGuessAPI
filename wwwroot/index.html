@@ -60,8 +60,7 @@
         .message-area { background: #1a1a1b; border-radius: 16px; padding: 12px; margin: 10px 0; text-align: center; }
         .players-list { list-style: none; padding: 0; margin: 10px 0; }
         .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
-        .countdown { font-size: 2rem; text-align: center; margin: 10px 0; font-weight: bold; color: #facc15; }
-        .timer { font-size: 1.2rem; text-align: center; background: #2c2c2e; border-radius: 40px; padding: 8px; margin: 10px 0; }
+        .countdown { font-size: 3rem; text-align: center; margin: 20px 0; font-weight: bold; color: #facc15; }
         @media (max-width: 700px) {
             .tile { width: 45px; height: 45px; font-size: 1.5rem; }
             .key { padding: 8px 4px; font-size: 0.8rem; }
@@ -116,7 +115,6 @@
             </div>
             <div id="waitingMsg" class="message-area" style="background:#2c2c2e;"></div>
             <div id="countdownDisplay" class="countdown"></div>
-            <div id="roundTimer" class="timer"></div>
             <div id="board" class="board"></div>
             <div id="keyboard" class="keyboard"></div>
             <div id="gameMsg" class="message-area"></div>
@@ -143,8 +141,6 @@
     let gameActive = false;
     let roundActive = false;
     let isAdmin = false;
-    let roundTimerInterval = null;
-    let countdownInterval = null;
     let currentLocalGuess = '';
 
     // DOM elements
@@ -159,7 +155,6 @@
     const roomCodeSpan = document.getElementById('roomCodeSpan');
     const playerCountSpan = document.getElementById('playerCount');
     const countdownDisplay = document.getElementById('countdownDisplay');
-    const roundTimerSpan = document.getElementById('roundTimer');
     const usernameSpan = document.getElementById('usernameSpan');
     const adminSpan = document.getElementById('adminSpan');
     const waitingMsgDiv = document.getElementById('waitingMsg');
@@ -269,7 +264,6 @@
         sidePanel.style.display = 'none';
         lobbyScreen.style.display = 'block';
         currentRoom = null;
-        clearTimers();
     };
 
     // ==================== TABLERO Y TECLADO ====================
@@ -424,22 +418,33 @@
             if (playerCount < 2) {
                 waitingMsgDiv.innerHTML = `⏳ Esperando al menos 2 jugadores... (${playerCount}/2)`;
                 waitingMsgDiv.style.display = 'block';
-                // Ocultar tablero y deshabilitar juego
                 gameActive = false;
                 roundActive = false;
                 if (boardDiv) boardDiv.style.opacity = '0.5';
             } else {
-                waitingMsgDiv.style.display = 'none';
-                if (boardDiv) boardDiv.style.opacity = '1';
+                waitingMsgDiv.innerHTML = `✅ Suficientes jugadores (${playerCount}/2). ¡El juego comenzará en breve!`;
+                // El contador lo maneja el evento CountdownTick
             }
         });
 
-        connection.on("RoundStarting", (seconds) => {
-            startCountdown(seconds);
+        connection.on("CountdownTick", (seconds) => {
+            countdownDisplay.style.display = 'block';
+            countdownDisplay.innerText = `${seconds}`;
+            if (seconds <= 1) {
+                setTimeout(() => { countdownDisplay.style.display = 'none'; }, 1000);
+            }
         });
 
-        connection.on("RoundStarted", (wordLength, timeLimit) => {
-            startRound(wordLength, timeLimit);
+        connection.on("RoundStarted", (wordLength) => {
+            currentWordLength = wordLength;
+            maxAttempts = 6;
+            buildBoard(wordLength);
+            currentAttempts = [];
+            currentLocalGuess = '';
+            gameActive = true;
+            roundActive = true;
+            boardDiv.style.opacity = '1';
+            showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra para sobrevivir.', false);
         });
 
         connection.on("GuessResult", (result) => {
@@ -452,7 +457,6 @@
                     roundActive = false;
                     if (result.won) showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
                     else showMsg(gameMsgDiv, `😞 Fallaste. Has sido eliminado.`, true);
-                    clearTimers();
                 } else {
                     gameActive = true;
                 }
@@ -464,7 +468,6 @@
         connection.on("RoundEnded", (survivors, word) => {
             roundActive = false;
             gameActive = false;
-            clearTimers();
             let msg = `Ronda terminada. Palabra: ${word}. Sobrevivientes: ${survivors.join(', ')}`;
             showMsg(gameMsgDiv, msg, false);
             document.getElementById('resetGameBtn').style.display = isAdmin ? 'block' : 'none';
@@ -473,7 +476,6 @@
         connection.on("GameEnded", (winner) => {
             roundActive = false;
             gameActive = false;
-            clearTimers();
             if (winner) {
                 showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
             } else {
@@ -495,50 +497,6 @@
         connection.on("Error", (err) => showMsg(gameMsgDiv, err, true));
 
         connection.start().catch(err => console.error("SignalR error:", err));
-    }
-
-    function startCountdown(seconds) {
-        let remaining = seconds;
-        countdownDisplay.style.display = 'block';
-        countdownDisplay.innerText = `Comienza en ${remaining}s`;
-        if (countdownInterval) clearInterval(countdownInterval);
-        countdownInterval = setInterval(() => {
-            remaining--;
-            if (remaining <= 0) {
-                clearInterval(countdownInterval);
-                countdownDisplay.style.display = 'none';
-            } else {
-                countdownDisplay.innerText = `Comienza en ${remaining}s`;
-            }
-        }, 1000);
-    }
-
-    function startRound(wordLength, timeLimit) {
-        currentWordLength = wordLength;
-        maxAttempts = 6;
-        buildBoard(wordLength);
-        currentAttempts = [];
-        currentLocalGuess = '';
-        gameActive = true;
-        roundActive = true;
-        let timeLeft = timeLimit;
-        roundTimerSpan.innerText = `⏱️ ${timeLeft}s`;
-        if (roundTimerInterval) clearInterval(roundTimerInterval);
-        roundTimerInterval = setInterval(() => {
-            if (!roundActive) return;
-            timeLeft--;
-            roundTimerSpan.innerText = `⏱️ ${timeLeft}s`;
-            if (timeLeft <= 0) {
-                clearInterval(roundTimerInterval);
-            }
-        }, 1000);
-        document.getElementById('resetGameBtn').style.display = 'none';
-        showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra para sobrevivir.', false);
-    }
-
-    function clearTimers() {
-        if (roundTimerInterval) clearInterval(roundTimerInterval);
-        if (countdownInterval) clearInterval(countdownInterval);
     }
 
     document.getElementById('resetGameBtn').onclick = async () => {
