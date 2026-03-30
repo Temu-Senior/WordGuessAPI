@@ -60,10 +60,11 @@
         .message-area { background: #1a1a1b; border-radius: 16px; padding: 12px; margin: 10px 0; text-align: center; }
         .players-list { list-style: none; padding: 0; margin: 10px 0; }
         .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
-        .countdown { font-size: 3rem; text-align: center; margin: 20px 0; font-weight: bold; color: #facc15; }
+        .countdown { font-size: 5rem; text-align: center; margin: 30px 0; font-weight: bold; color: #facc15; }
         @media (max-width: 700px) {
             .tile { width: 45px; height: 45px; font-size: 1.5rem; }
             .key { padding: 8px 4px; font-size: 0.8rem; }
+            .countdown { font-size: 3rem; }
         }
     </style>
 </head>
@@ -114,9 +115,9 @@
                 <button id="leaveRoomBtn" style="width:auto; background:#e74c3c;">Salir</button>
             </div>
             <div id="waitingMsg" class="message-area" style="background:#2c2c2e;"></div>
-            <div id="countdownDisplay" class="countdown"></div>
-            <div id="board" class="board"></div>
-            <div id="keyboard" class="keyboard"></div>
+            <div id="countdownDisplay" class="countdown" style="display:none;"></div>
+            <div id="board" class="board" style="display:none;"></div>
+            <div id="keyboard" class="keyboard" style="display:none;"></div>
             <div id="gameMsg" class="message-area"></div>
             <button id="resetGameBtn" style="display:none;">🔄 Nueva ronda (admin)</button>
         </div>
@@ -418,20 +419,26 @@
             if (playerCount < 2) {
                 waitingMsgDiv.innerHTML = `⏳ Esperando al menos 2 jugadores... (${playerCount}/2)`;
                 waitingMsgDiv.style.display = 'block';
+                // Ocultar tablero y teclado mientras se espera
+                boardDiv.style.display = 'none';
+                keyboardDiv.style.display = 'none';
+                countdownDisplay.style.display = 'none';
                 gameActive = false;
                 roundActive = false;
-                if (boardDiv) boardDiv.style.opacity = '0.5';
             } else {
                 waitingMsgDiv.innerHTML = `✅ Suficientes jugadores (${playerCount}/2). ¡El juego comenzará en breve!`;
-                // El contador lo maneja el evento CountdownTick
+                // El contador se activará con CountdownTick
             }
         });
 
         connection.on("CountdownTick", (seconds) => {
             countdownDisplay.style.display = 'block';
-            countdownDisplay.innerText = `${seconds}`;
-            if (seconds <= 1) {
-                setTimeout(() => { countdownDisplay.style.display = 'none'; }, 1000);
+            countdownDisplay.innerText = seconds;
+            boardDiv.style.display = 'none';
+            keyboardDiv.style.display = 'none';
+            if (seconds === 0) {
+                // El contador termina, el juego comenzará con RoundStarted
+                countdownDisplay.style.display = 'none';
             }
         });
 
@@ -443,7 +450,9 @@
             currentLocalGuess = '';
             gameActive = true;
             roundActive = true;
-            boardDiv.style.opacity = '1';
+            boardDiv.style.display = 'block';
+            keyboardDiv.style.display = 'block';
+            waitingMsgDiv.style.display = 'none';
             showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra para sobrevivir.', false);
         });
 

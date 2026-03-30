@@ -48,13 +48,13 @@ public class GameHub : Hub
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
         await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
 
-        // Notificar a todos los jugadores el número actual
+        // Notificar a todos el número de jugadores
         await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
 
-        // Si ya hay al menos 2 jugadores y no hay ronda activa ni countdown activo, iniciar countdown
+        // Si hay al menos 2 jugadores y no hay ronda activa ni countdown activo, iniciar countdown
         if (room.Players.Count >= 2 && !room.RoundActive && !room.CountdownActive)
         {
-            _ = Task.Run(() => StartRoundCountdown(roomCode));
+            _ = Task.Run(() => StartCountdown(roomCode));
         }
     }
 
@@ -70,6 +70,70 @@ public class GameHub : Hub
             else
                 await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
         }
+    }
+
+    private async Task StartCountdown(string roomCode)
+    {
+        if (!_rooms.TryGetValue(roomCode, out var room)) return;
+        if (room.CountdownActive) return;
+        room.CountdownActive = true;
+
+        try
+        {
+            // Esperar un poco para asegurar que al menos 2 jugadores (si ya lo están, no espera)
+            while (room.Players.Count < 2)
+            {
+                await Task.Delay(200);
+                if (!_rooms.ContainsKey(roomCode)) return;
+                room = _rooms[roomCode];
+            }
+
+            // Enviar cuenta regresiva: 5,4,3,2,1
+            for (int i = 5; i >= 0; i--)
+            {
+                if (i == 0)
+                {
+                    // Iniciar ronda
+                    await StartRound(roomCode);
+                    return;
+                }
+                await Clients.Group(roomCode).SendAsync("CountdownTick", i);
+                await Task.Delay(1000);
+                if (!_rooms.ContainsKey(roomCode)) return;
+                room = _rooms[roomCode];
+                // Si la ronda ya se activó por otro motivo, salir
+                if (room.RoundActive) return;
+            }
+        }
+        finally
+        {
+            if (_rooms.TryGetValue(roomCode, out var r)) r.CountdownActive = false;
+        }
+    }
+
+    private async Task StartRound(string roomCode)
+    {
+        if (!_rooms.TryGetValue(roomCode, out var room)) return;
+        if (room.RoundActive) return;
+
+        // Elegir palabra según longitud
+        var word = GetWordByLength(room.WordLength);
+        room.CurrentWord = word.ToUpper();
+        room.RoundActive = true;
+
+        // Reiniciar estados de jugadores vivos
+        foreach (var p in room.Players.Values)
+        {
+            if (p.Status != "eliminated")
+            {
+                p.AttemptsLeft = 6;
+                p.HasGuessedInRound = false;
+                p.Attempts.Clear();
+                p.Status = "alive";
+            }
+        }
+
+        await Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength);
     }
 
     public async Task MakeGuess(string roomCode, string guess)
@@ -133,61 +197,6 @@ public class GameHub : Hub
         }
     }
 
-    private async Task StartRoundCountdown(string roomCode)
-    {
-        if (!_rooms.TryGetValue(roomCode, out var room)) return;
-        if (room.CountdownActive) return;
-        room.CountdownActive = true;
-
-        try
-        {
-            // Esperar a que haya al menos 2 jugadores (por si acaso)
-            while (room.Players.Count < 2)
-            {
-                await Task.Delay(500);
-                if (!_rooms.ContainsKey(roomCode)) return;
-                room = _rooms[roomCode];
-            }
-
-            // Iniciar cuenta regresiva de 5 segundos
-            for (int i = 5; i > 0; i--)
-            {
-                await Clients.Group(roomCode).SendAsync("CountdownTick", i);
-                await Task.Delay(1000);
-                if (!_rooms.ContainsKey(roomCode)) return;
-                room = _rooms[roomCode];
-                if (room.RoundActive) return; // ya comenzó
-            }
-
-            if (!_rooms.ContainsKey(roomCode)) return;
-            room = _rooms[roomCode];
-            if (room.RoundActive) return;
-
-            // Elegir palabra
-            var word = GetWordByLength(room.WordLength);
-            room.CurrentWord = word.ToUpper();
-            room.RoundActive = true;
-
-            // Reiniciar estados de jugadores vivos
-            foreach (var p in room.Players.Values)
-            {
-                if (p.Status != "eliminated")
-                {
-                    p.AttemptsLeft = 6;
-                    p.HasGuessedInRound = false;
-                    p.Attempts.Clear();
-                    p.Status = "alive";
-                }
-            }
-
-            await Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength);
-        }
-        finally
-        {
-            room.CountdownActive = false;
-        }
-    }
-
     private async Task EndRound(string roomCode)
     {
         if (!_rooms.TryGetValue(roomCode, out var room)) return;
@@ -220,12 +229,12 @@ public class GameHub : Hub
             {
                 await Task.Delay(3000);
                 if (_rooms.ContainsKey(roomCode))
-                    await StartRoundCountdown(roomCode);
+                    await StartCountdown(roomCode);
             });
         }
     }
 
-    // Métodos auxiliares (EvaluateGuess, GetWordByLength, GetPlayersList) igual que antes
+    // ==================== MÉTODOS AUXILIARES ====================
     private List<LetterResult> EvaluateGuess(string guess, string target)
     {
         guess = guess.ToUpper();
@@ -280,6 +289,7 @@ public class GameHub : Hub
     }
 }
 
+// ==================== CLASES AUXILIARES ====================
 public class PlayerInRoom
 {
     public string ConnectionId { get; set; }
