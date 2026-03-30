@@ -84,7 +84,7 @@
             <div id="authMsg" class="message-area"></div>
         </div>
 
-        <!-- Pantalla de lobby (tras login) -->
+        <!-- Pantalla de lobby -->
         <div id="lobbyScreen" style="display:none;">
             <div class="top-bar">
                 <span>👤 <span id="usernameSpan"></span> <span id="adminSpan" style="background:#facc15; color:#000; padding:2px 8px; border-radius:20px;"></span></span>
@@ -92,6 +92,12 @@
             </div>
             <div class="lobby-card">
                 <h3>🎮 Sala multijugador</h3>
+                <label>Dificultad:</label>
+                <select id="difficultySelect">
+                    <option value="easy">🍃 Fácil (4 letras)</option>
+                    <option value="normal" selected>⚡ Normal (5 letras)</option>
+                    <option value="hard">🔥 Difícil (6 letras)</option>
+                </select>
                 <button id="createRoomBtn">✨ Crear nueva sala</button>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <input type="text" id="joinRoomCode" placeholder="Código de sala">
@@ -126,19 +132,19 @@
 </div>
 
 <script>
-    // -------------------- CONFIGURACIÓN --------------------
     const API_BASE = window.location.origin;
     let token = null;
     let connection = null;
     let currentRoom = null;
     let currentWordLength = 5;
     let maxAttempts = 6;
-    let currentAttempts = [];      // intentos del jugador local
+    let currentAttempts = [];
     let gameActive = false;
-    let isAdmin = false;
     let roundActive = false;
+    let isAdmin = false;
     let roundTimerInterval = null;
     let countdownInterval = null;
+    let currentLocalGuess = '';
 
     // DOM elements
     const authScreen = document.getElementById('authScreen');
@@ -156,13 +162,14 @@
     const usernameSpan = document.getElementById('usernameSpan');
     const adminSpan = document.getElementById('adminSpan');
 
-    // Helper mensajes
     function showMsg(container, text, isError = false) {
         container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
-        setTimeout(() => { if (container.innerHTML === `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`) container.innerHTML = ''; }, 4000);
+        setTimeout(() => {
+            if (container.innerHTML === `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`) container.innerHTML = '';
+        }, 5000);
     }
 
-    // -------------------- AUTENTICACIÓN --------------------
+    // ==================== AUTENTICACIÓN ====================
     async function register() {
         const username = document.getElementById('regUser').value.trim();
         const password = document.getElementById('regPass').value.trim();
@@ -222,19 +229,13 @@
     document.getElementById('registerBtn').onclick = register;
     document.getElementById('loginBtn').onclick = login;
     document.getElementById('logoutBtn').onclick = logout;
-    document.getElementById('leaveRoomBtn')?.addEventListener('click', () => {
-        if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
-        gameScreen.style.display = 'none';
-        sidePanel.style.display = 'none';
-        lobbyScreen.style.display = 'block';
-        currentRoom = null;
-    });
 
-    // -------------------- LOBBY Y SALAS --------------------
+    // ==================== LOBBY Y SALAS ====================
     document.getElementById('createRoomBtn').onclick = async () => {
+        const difficulty = document.getElementById('difficultySelect').value;
+        const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         if (connection) {
-            const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            await connection.invoke("CreateRoom", roomCode);
+            await connection.invoke("CreateRoom", roomCode, difficulty);
             currentRoom = roomCode;
             roomCodeSpan.innerText = roomCode;
             lobbyScreen.style.display = 'none';
@@ -258,13 +259,23 @@
         }
     };
 
-    // -------------------- TABLERO Y TECLADO --------------------
+    document.getElementById('leaveRoomBtn').onclick = async () => {
+        if (connection && currentRoom) {
+            await connection.invoke("LeaveRoom", currentRoom);
+        }
+        gameScreen.style.display = 'none';
+        sidePanel.style.display = 'none';
+        lobbyScreen.style.display = 'block';
+        currentRoom = null;
+        clearTimers();
+    };
+
+    // ==================== TABLERO Y TECLADO ====================
     function buildBoard(length) {
         boardDiv.innerHTML = '';
         for (let i = 0; i < maxAttempts; i++) {
             const row = document.createElement('div');
             row.className = 'row';
-            row.id = `row-${i}`;
             for (let j = 0; j < length; j++) {
                 const tile = document.createElement('div');
                 tile.className = 'tile';
@@ -276,7 +287,6 @@
     }
 
     function updateBoardFromAttempts(attemptsList) {
-        // Limpiar todas las filas
         for (let i = 0; i < maxAttempts; i++) {
             for (let j = 0; j < currentWordLength; j++) {
                 const tile = document.getElementById(`tile-${i}-${j}`);
@@ -286,11 +296,10 @@
                 }
             }
         }
-        // Rellenar intentos
         for (let idx = 0; idx < attemptsList.length; idx++) {
             const attempt = attemptsList[idx];
             const guess = attempt.guess;
-            const result = attempt.result; // array de {letter, status}
+            const result = attempt.result;
             for (let pos = 0; pos < guess.length && pos < currentWordLength; pos++) {
                 const tile = document.getElementById(`tile-${idx}-${pos}`);
                 if (tile) {
@@ -352,15 +361,12 @@
         }
     }
 
-    // Manejo de teclado local (envía intento al servidor)
-    let currentLocalGuess = '';
     function handleKeyPress(key) {
         if (!roundActive || !gameActive) return;
         const currentRow = currentAttempts.length;
         if (currentRow >= maxAttempts) return;
         if (key === 'enter') {
             if (currentLocalGuess.length === currentWordLength) {
-                // Enviar intento al servidor (SignalR)
                 connection.invoke("MakeGuess", currentRoom, currentLocalGuess);
                 currentLocalGuess = '';
             } else {
@@ -386,7 +392,14 @@
         }
     }
 
-    // -------------------- SIGNALR (multijugador) --------------------
+    window.addEventListener('keydown', (e) => {
+        const key = e.key;
+        if (key === 'Enter') handleKeyPress('enter');
+        else if (key === 'Backspace') handleKeyPress('backspace');
+        else if (/^[a-zA-Z]$/.test(key)) handleKeyPress(key.toLowerCase());
+    });
+
+    // ==================== SIGNALR ====================
     function connectSignalR() {
         if (connection) connection.stop();
         connection = new signalR.HubConnectionBuilder()
@@ -394,66 +407,79 @@
             .withAutomaticReconnect()
             .build();
 
-        // Eventos de sala
-        connection.on("RoomCreated", (roomCode) => {
-            // No hacer nada, ya se creó
-        });
-        connection.on("RoomJoined", (roomCode, players) => {
-            currentRoom = roomCode;
-            updatePlayersList(players);
-        });
         connection.on("PlayersUpdate", (players) => {
-            updatePlayersList(players);
+            playersListUl.innerHTML = '';
+            playerCountSpan.innerText = players.length;
+            players.forEach(p => {
+                const li = document.createElement('li');
+                const guessedIcon = p.hasGuessed ? '✅ ' : '';
+                li.innerHTML = `<span>${guessedIcon}${p.name}</span> <span>❤️ ${p.attemptsLeft} | ${p.status}</span>`;
+                playersListUl.appendChild(li);
+            });
         });
-        connection.on("RoundStarting", (countdown) => {
-            startCountdown(countdown);
+
+        connection.on("RoundStarting", (seconds) => {
+            startCountdown(seconds);
         });
+
         connection.on("RoundStarted", (wordLength, timeLimit) => {
             startRound(wordLength, timeLimit);
         });
-        connection.on("GuessResult", (guessResult) => {
-            // guessResult contiene: { success, guess, resultArray, attemptsLeft, gameCompleted, won, word }
-            if (guessResult.success) {
-                const attempt = { guess: guessResult.guess, result: guessResult.resultArray };
+
+        connection.on("GuessResult", (result) => {
+            if (result.success) {
+                const attempt = { guess: result.guess, result: result.resultArray };
                 currentAttempts.push(attempt);
                 updateBoardFromAttempts(currentAttempts);
-                if (guessResult.gameCompleted) {
+                if (result.gameCompleted) {
                     gameActive = false;
                     roundActive = false;
-                    if (guessResult.won) showMsg(gameMsgDiv, `🎉 ¡Adivinaste! 🎉`, false);
-                    else showMsg(gameMsgDiv, `😞 Perdiste. La palabra era: ${guessResult.word}`, true);
+                    if (result.won) showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
+                    else showMsg(gameMsgDiv, `😞 Fallaste. Has sido eliminado.`, true);
                     clearTimers();
                 } else {
                     gameActive = true;
                 }
             } else {
-                showMsg(gameMsgDiv, guessResult.error || 'Intento inválido', true);
+                showMsg(gameMsgDiv, result.error || 'Intento inválido', true);
             }
         });
-        connection.on("RoundEnded", (winner, word) => {
+
+        connection.on("RoundEnded", (survivors, word) => {
             roundActive = false;
             gameActive = false;
             clearTimers();
-            if (winner) showMsg(gameMsgDiv, `🏆 ${winner} ha ganado la ronda! Palabra: ${word}`, false);
-            else showMsg(gameMsgDiv, `⏰ Tiempo agotado. Nadie adivinó. Palabra: ${word}`, true);
+            let msg = `Ronda terminada. Palabra: ${word}. Sobrevivientes: ${survivors.join(', ')}`;
+            showMsg(gameMsgDiv, msg, false);
             document.getElementById('resetGameBtn').style.display = isAdmin ? 'block' : 'none';
         });
+
+        connection.on("GameEnded", (winner) => {
+            roundActive = false;
+            gameActive = false;
+            clearTimers();
+            if (winner) {
+                showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
+            } else {
+                showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
+            }
+            // Opcional: salir de la sala automáticamente tras unos segundos
+            setTimeout(() => {
+                if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
+                gameScreen.style.display = 'none';
+                sidePanel.style.display = 'none';
+                lobbyScreen.style.display = 'block';
+                currentRoom = null;
+            }, 5000);
+        });
+
         connection.on("PlayerEliminated", (playerName) => {
             showMsg(gameMsgDiv, `💀 ${playerName} ha sido eliminado`, true);
         });
+
         connection.on("Error", (err) => showMsg(gameMsgDiv, err, true));
 
         connection.start().catch(err => console.error("SignalR error:", err));
-    }
-
-    function updatePlayersList(players) {
-        playersListUl.innerHTML = '';
-        playerCountSpan.innerText = players.length;
-        players.forEach(p => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span>${p.name}</span> <span>❤️ ${p.attemptsLeft} | ${p.status}</span>`;
-            playersListUl.appendChild(li);
-        });
     }
 
     function startCountdown(seconds) {
@@ -480,7 +506,6 @@
         currentLocalGuess = '';
         gameActive = true;
         roundActive = true;
-        // Iniciar temporizador de ronda
         let timeLeft = timeLimit;
         roundTimerSpan.innerText = `⏱️ ${timeLeft}s`;
         if (roundTimerInterval) clearInterval(roundTimerInterval);
@@ -490,12 +515,10 @@
             roundTimerSpan.innerText = `⏱️ ${timeLeft}s`;
             if (timeLeft <= 0) {
                 clearInterval(roundTimerInterval);
-                // El servidor también manejará el fin de ronda, pero lo indicamos localmente
-                if (roundActive) showMsg(gameMsgDiv, '⏰ Tiempo agotado', true);
             }
         }, 1000);
         document.getElementById('resetGameBtn').style.display = 'none';
-        showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra', false);
+        showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra para sobrevivir.', false);
     }
 
     function clearTimers() {
@@ -503,32 +526,20 @@
         if (countdownInterval) clearInterval(countdownInterval);
     }
 
-    // Botón reiniciar (solo admin)
-    document.getElementById('resetGameBtn')?.addEventListener('click', () => {
+    document.getElementById('resetGameBtn').onclick = async () => {
         if (isAdmin && connection && currentRoom) {
-            connection.invoke("ForceNewRound", currentRoom);
+            await connection.invoke("ForceNewRound", currentRoom);
         }
-    });
+    };
 
-    // Teclado físico
-    window.addEventListener('keydown', (e) => {
-        const key = e.key;
-        if (key === 'Enter') handleKeyPress('enter');
-        else if (key === 'Backspace') handleKeyPress('backspace');
-        else if (/^[a-zA-Z]$/.test(key)) handleKeyPress(key.toLowerCase());
-    });
-
-    // Inicializar teclado virtual
     buildKeyboard();
 
-    // Cargar si hay token guardado
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
         token = savedToken;
         authScreen.style.display = 'none';
         lobbyScreen.style.display = 'block';
         connectSignalR();
-        // Intentar decodificar nombre
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             usernameSpan.innerText = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
