@@ -399,8 +399,9 @@
     // ==================== SIGNALR ====================
     function connectSignalR() {
         if (connection) connection.stop();
+        // IMPORTANTE: No enviamos token en la conexión SignalR para evitar 401
         connection = new signalR.HubConnectionBuilder()
-            .withUrl(`${API_BASE}/gameHub?access_token=${token}`)
+            .withUrl(`${API_BASE}/gameHub`)  // <--- sin token
             .withAutomaticReconnect()
             .build();
 
@@ -419,7 +420,6 @@
             if (playerCount < 2) {
                 waitingMsgDiv.innerHTML = `⏳ Esperando al menos 2 jugadores... (${playerCount}/2)`;
                 waitingMsgDiv.style.display = 'block';
-                // Ocultar tablero y teclado mientras se espera
                 boardDiv.style.display = 'none';
                 keyboardDiv.style.display = 'none';
                 countdownDisplay.style.display = 'none';
@@ -427,7 +427,6 @@
                 roundActive = false;
             } else {
                 waitingMsgDiv.innerHTML = `✅ Suficientes jugadores (${playerCount}/2). ¡El juego comenzará en breve!`;
-                // El contador se activará con CountdownTick
             }
         });
 
@@ -437,7 +436,6 @@
             boardDiv.style.display = 'none';
             keyboardDiv.style.display = 'none';
             if (seconds === 0) {
-                // El contador termina, el juego comenzará con RoundStarted
                 countdownDisplay.style.display = 'none';
             }
         });
@@ -505,7 +503,9 @@
 
         connection.on("Error", (err) => showMsg(gameMsgDiv, err, true));
 
-        connection.start().catch(err => console.error("SignalR error:", err));
+        connection.start()
+            .then(() => console.log("SignalR conectado sin autenticación"))
+            .catch(err => console.error("SignalR error:", err));
     }
 
     document.getElementById('resetGameBtn').onclick = async () => {

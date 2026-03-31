@@ -5,7 +5,7 @@ using System.Security.Claims;
 
 namespace WordGuessAPI.Hubs;
 
-[Authorize]
+//[Authorize]
 public class GameHub : Hub
 {
     private static ConcurrentDictionary<string, Room> _rooms = new();
