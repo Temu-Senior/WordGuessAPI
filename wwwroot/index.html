@@ -119,7 +119,6 @@
             <div id="board" class="board" style="display:none;"></div>
             <div id="keyboard" class="keyboard" style="display:none;"></div>
             <div id="gameMsg" class="message-area"></div>
-            <button id="resetGameBtn" style="display:none;">🔄 Nueva ronda (admin)</button>
         </div>
     </div>
 
@@ -481,7 +480,6 @@
             gameActive = false;
             let msg = `Ronda terminada. Palabra: ${word}. Sobrevivientes: ${survivors.join(', ')}`;
             showMsg(gameMsgDiv, msg, false);
-            document.getElementById('resetGameBtn').style.display = isAdmin ? 'block' : 'none';
         });
 
         connection.on("GameEnded", (winner) => {
@@ -509,14 +507,8 @@
 
         connection.start()
             .then(() => console.log("SignalR conectado"))
-            .catch(err => console.error("SignalR error:", err));
+            .catch(err => console.error("SignalR error detallado:", err));
     }
-
-    document.getElementById('resetGameBtn').onclick = async () => {
-        if (isAdmin && connection && currentRoom) {
-            await connection.invoke("ForceNewRound", currentRoom);
-        }
-    };
 
     buildKeyboard();
 

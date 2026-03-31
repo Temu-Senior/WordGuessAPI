@@ -45,7 +45,6 @@ public class GameHub : Hub
         await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
         await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
 
-        // Si hay al menos 2 jugadores y no hay ronda activa ni countdown activo, iniciar countdown
         if (room.Players.Count >= 2 && !room.RoundActive && !room.CountdownActive)
         {
             _ = Task.Run(() => StartCountdown(roomCode));
@@ -74,7 +73,6 @@ public class GameHub : Hub
 
         try
         {
-            // Esperar hasta que haya al menos 2 jugadores (si ya los hay, continúa)
             while (room.Players.Count < 2)
             {
                 await Task.Delay(200);
@@ -82,7 +80,6 @@ public class GameHub : Hub
                 room = _rooms[roomCode];
             }
 
-            // Enviar cuenta regresiva 5,4,3,2,1
             for (int i = 5; i >= 0; i--)
             {
                 if (i == 0)
@@ -112,7 +109,6 @@ public class GameHub : Hub
         room.CurrentWord = word.ToUpper();
         room.RoundActive = true;
 
-        // Reiniciar estados de jugadores vivos
         foreach (var p in room.Players.Values)
         {
             if (p.Status != "eliminated")
@@ -179,7 +175,6 @@ public class GameHub : Hub
 
         await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
 
-        // Si todos los vivos adivinaron, terminar ronda
         var allAliveGuessed = room.Players.Values
             .Where(p => p.Status == "alive")
             .All(p => p.HasGuessedInRound);
@@ -226,7 +221,7 @@ public class GameHub : Hub
         }
     }
 
-    // Métodos auxiliares (igual que antes)
+    // Métodos auxiliares
     private List<LetterResult> EvaluateGuess(string guess, string target)
     {
         guess = guess.ToUpper();
