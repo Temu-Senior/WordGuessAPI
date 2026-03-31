@@ -143,6 +143,7 @@
     let roundActive = false;
     let isAdmin = false;
     let currentLocalGuess = '';
+    let currentUsername = '';
 
     // DOM elements
     const authScreen = document.getElementById('authScreen');
@@ -198,6 +199,7 @@
             if (data.success) {
                 token = data.data.token;
                 localStorage.setItem('token', token);
+                currentUsername = username;
                 try {
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
@@ -217,6 +219,7 @@
         localStorage.removeItem('token');
         if (connection) connection.stop();
         token = null;
+        currentUsername = '';
         authScreen.style.display = 'block';
         lobbyScreen.style.display = 'none';
         gameScreen.style.display = 'none';
@@ -230,10 +233,11 @@
 
     // ==================== LOBBY Y SALAS ====================
     document.getElementById('createRoomBtn').onclick = async () => {
+        if (!currentUsername) return showMsg(document.getElementById('lobbyMsg'), 'No estás logueado', true);
         const difficulty = document.getElementById('difficultySelect').value;
         const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         if (connection) {
-            await connection.invoke("CreateRoom", roomCode, difficulty);
+            await connection.invoke("CreateRoom", roomCode, difficulty, currentUsername);
             currentRoom = roomCode;
             roomCodeSpan.innerText = roomCode;
             lobbyScreen.style.display = 'none';
@@ -244,10 +248,11 @@
     };
 
     document.getElementById('joinRoomBtn').onclick = async () => {
+        if (!currentUsername) return showMsg(document.getElementById('lobbyMsg'), 'No estás logueado', true);
         const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
         if (!code) return showMsg(document.getElementById('lobbyMsg'), 'Ingresa código', true);
         if (connection) {
-            await connection.invoke("JoinRoom", code);
+            await connection.invoke("JoinRoom", code, currentUsername);
             currentRoom = code;
             roomCodeSpan.innerText = code;
             lobbyScreen.style.display = 'none';
@@ -364,7 +369,7 @@
         if (currentRow >= maxAttempts) return;
         if (key === 'enter') {
             if (currentLocalGuess.length === currentWordLength) {
-                connection.invoke("MakeGuess", currentRoom, currentLocalGuess);
+                connection.invoke("MakeGuess", currentRoom, currentLocalGuess, currentUsername);
                 currentLocalGuess = '';
             } else {
                 showMsg(gameMsgDiv, `Debes ingresar ${currentWordLength} letras`, true);
@@ -399,9 +404,8 @@
     // ==================== SIGNALR ====================
     function connectSignalR() {
         if (connection) connection.stop();
-        // IMPORTANTE: No enviamos token en la conexión SignalR para evitar 401
         connection = new signalR.HubConnectionBuilder()
-            .withUrl(`${API_BASE}/gameHub`)  // <--- sin token
+            .withUrl(`${API_BASE}/gameHub`)
             .withAutomaticReconnect()
             .build();
 
@@ -504,7 +508,7 @@
         connection.on("Error", (err) => showMsg(gameMsgDiv, err, true));
 
         connection.start()
-            .then(() => console.log("SignalR conectado sin autenticación"))
+            .then(() => console.log("SignalR conectado"))
             .catch(err => console.error("SignalR error:", err));
     }
 
@@ -524,7 +528,8 @@
         connectSignalR();
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            usernameSpan.innerText = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
+            currentUsername = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
+            usernameSpan.innerText = currentUsername;
             isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
             adminSpan.innerText = isAdmin ? 'Admin' : '';
         } catch(e) {}
