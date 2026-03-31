@@ -1,534 +1,208 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Wordle Battle Royale</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
-    <style>
-        * { box-sizing: border-box; user-select: none; }
-        body {
-            background: #121213;
-            font-family: 'Clear Sans', 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .game-container { max-width: 1200px; width: 100%; margin: auto; display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
-        .main-panel { flex: 2; min-width: 300px; }
-        .side-panel { flex: 1; min-width: 250px; background: #1a1a1b; border-radius: 20px; padding: 15px; }
-        h1 { text-align: center; font-size: 2rem; margin: 0 0 10px; }
-        .auth-card, .lobby-card { background: #1a1a1b; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
-        input, select, button {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            background: #2c2c2e;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 1rem;
-        }
-        button { background: #538d4e; cursor: pointer; font-weight: bold; }
-        button:hover { background: #6aaa64; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #1a1a1b; padding: 8px 15px; border-radius: 40px; }
-        .board { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
-        .row { display: flex; justify-content: center; gap: 5px; }
-        .tile {
-            width: 60px; height: 60px; background: #3a3a3c; border: 2px solid #3a3a3c;
-            font-size: 2rem; font-weight: bold; display: flex; align-items: center; justify-content: center;
-            text-transform: uppercase; color: white;
-        }
-        .tile.correct { background: #538d4e; border-color: #538d4e; }
-        .tile.present { background: #b59f3b; border-color: #b59f3b; }
-        .tile.absent { background: #3a3a3c; border-color: #3a3a3c; }
-        .keyboard { margin: 20px 0; }
-        .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
-        .key {
-            background: #818384; border: none; border-radius: 4px; color: white;
-            font-weight: bold; font-size: 1rem; padding: 12px 8px; cursor: pointer;
-            text-transform: uppercase; min-width: 32px; flex: 1; text-align: center;
-        }
-        .key.wide { flex: 1.5; }
-        .key.correct { background: #538d4e; }
-        .key.present { background: #b59f3b; }
-        .key.absent { background: #3a3a3c; }
-        .message-area { background: #1a1a1b; border-radius: 16px; padding: 12px; margin: 10px 0; text-align: center; }
-        .players-list { list-style: none; padding: 0; margin: 10px 0; }
-        .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
-        .countdown { font-size: 5rem; text-align: center; margin: 30px 0; font-weight: bold; color: #facc15; }
-        @media (max-width: 700px) {
-            .tile { width: 45px; height: 45px; font-size: 1.5rem; }
-            .key { padding: 8px 4px; font-size: 0.8rem; }
-            .countdown { font-size: 3rem; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wordle Battle Royale</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+<style>
+body { background:#121213; color:#fff; font-family:Arial; text-align:center; }
+.tile { width:50px;height:50px;display:inline-flex;align-items:center;justify-content:center;margin:2px;background:#3a3a3c;font-size:20px }
+.correct{background:#538d4e}.present{background:#b59f3b}.absent{background:#3a3a3c}
+.countdown{font-size:50px;margin:20px}
+</style>
 </head>
+
 <body>
-<div class="game-container">
-    <div class="main-panel">
-        <h1>⚔️ WORDLE BATTLE ROYALE</h1>
-        <!-- Pantalla de autenticación -->
-        <div id="authScreen" class="auth-card">
-            <h3>Accede para jugar</h3>
-            <input type="text" id="regUser" placeholder="Usuario">
-            <input type="password" id="regPass" placeholder="Contraseña">
-            <button id="registerBtn">Registrarse</button>
-            <input type="text" id="loginUser" placeholder="Usuario">
-            <input type="password" id="loginPass" placeholder="Contraseña">
-            <button id="loginBtn">Iniciar sesión</button>
-            <div id="authMsg" class="message-area"></div>
-        </div>
 
-        <!-- Pantalla de lobby -->
-        <div id="lobbyScreen" style="display:none;">
-            <div class="top-bar">
-                <span>👤 <span id="usernameSpan"></span> <span id="adminSpan" style="background:#facc15; color:#000; padding:2px 8px; border-radius:20px;"></span></span>
-                <button id="logoutBtn" style="width:auto; background:#e74c3c;">Salir</button>
-            </div>
-            <div class="lobby-card">
-                <h3>🎮 Sala multijugador</h3>
-                <label>Dificultad:</label>
-                <select id="difficultySelect">
-                    <option value="easy">🍃 Fácil (4 letras)</option>
-                    <option value="normal" selected>⚡ Normal (5 letras)</option>
-                    <option value="hard">🔥 Difícil (6 letras)</option>
-                </select>
-                <button id="createRoomBtn">✨ Crear nueva sala</button>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <input type="text" id="joinRoomCode" placeholder="Código de sala">
-                    <button id="joinRoomBtn" style="width:auto;">Unirse</button>
-                </div>
-                <div id="lobbyMsg" class="message-area"></div>
-            </div>
-        </div>
+<h1>WORDLE BATTLE ROYALE</h1>
 
-        <!-- Pantalla de juego -->
-        <div id="gameScreen" style="display:none;">
-            <div class="top-bar">
-                <span>🎲 Sala: <strong id="roomCodeSpan"></strong></span>
-                <span>👥 <span id="playerCount">0</span> jugadores</span>
-                <button id="leaveRoomBtn" style="width:auto; background:#e74c3c;">Salir</button>
-            </div>
-            <div id="waitingMsg" class="message-area" style="background:#2c2c2e;"></div>
-            <div id="countdownDisplay" class="countdown" style="display:none;"></div>
-            <div id="board" class="board" style="display:none;"></div>
-            <div id="keyboard" class="keyboard" style="display:none;"></div>
-            <div id="gameMsg" class="message-area"></div>
-        </div>
-    </div>
+<input id="username" placeholder="Usuario"><br><br>
 
-    <!-- Panel lateral -->
-    <div class="side-panel" id="sidePanel" style="display:none;">
-        <h3>🏆 Jugadores en sala</h3>
-        <ul id="playersList" class="players-list"></ul>
-        <div id="roundResult" class="message-area"></div>
-    </div>
-</div>
+<input id="roomInput" placeholder="Código sala">
+<button onclick="joinRoom()">Unirse</button>
+<button onclick="createRoom()">Crear</button>
+
+<div id="status"></div>
+<div id="countdown" class="countdown"></div>
+<div id="board"></div>
 
 <script>
-    const API_BASE = window.location.origin;
-    let token = null;
-    let connection = null;
-    let currentRoom = null;
-    let currentWordLength = 5;
-    let maxAttempts = 6;
-    let currentAttempts = [];
-    let gameActive = false;
-    let roundActive = false;
-    let isAdmin = false;
-    let currentLocalGuess = '';
-    let currentUsername = '';
 
-    // DOM elements
-    const authScreen = document.getElementById('authScreen');
-    const lobbyScreen = document.getElementById('lobbyScreen');
-    const gameScreen = document.getElementById('gameScreen');
-    const sidePanel = document.getElementById('sidePanel');
-    const boardDiv = document.getElementById('board');
-    const keyboardDiv = document.getElementById('keyboard');
-    const gameMsgDiv = document.getElementById('gameMsg');
-    const playersListUl = document.getElementById('playersList');
-    const roomCodeSpan = document.getElementById('roomCodeSpan');
-    const playerCountSpan = document.getElementById('playerCount');
-    const countdownDisplay = document.getElementById('countdownDisplay');
-    const usernameSpan = document.getElementById('usernameSpan');
-    const adminSpan = document.getElementById('adminSpan');
-    const waitingMsgDiv = document.getElementById('waitingMsg');
+const API_BASE = window.location.origin;
 
-    function showMsg(container, text, isError = false) {
-        container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
-        setTimeout(() => {
-            if (container.innerHTML === `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`) container.innerHTML = '';
-        }, 5000);
+let connection = null;
+let currentRoom = null;
+let currentUsername = "";
+
+let currentWordLength = 5;
+let currentAttempts = [];
+let currentGuess = "";
+
+// ================== CONEXIÓN ==================
+
+async function connectSignalR() {
+
+    if (connection) {
+        try { await connection.stop(); } catch {}
     }
 
-    // ==================== AUTENTICACIÓN ====================
-    async function register() {
-        const username = document.getElementById('regUser').value.trim();
-        const password = document.getElementById('regPass').value.trim();
-        if (!username || !password) return showMsg(document.getElementById('authMsg'), 'Completa campos', true);
-        try {
-            const res = await fetch(`${API_BASE}/api/Auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (data.success) showMsg(document.getElementById('authMsg'), '✅ Registro OK. Inicia sesión.', false);
-            else showMsg(document.getElementById('authMsg'), `❌ ${data.message}`, true);
-        } catch { showMsg(document.getElementById('authMsg'), 'Error de conexión', true); }
-    }
+    connection = new signalR.HubConnectionBuilder()
+        .withUrl(`${API_BASE}/gameHub`)
+        .withAutomaticReconnect()
+        .build();
 
-    async function login() {
-        const username = document.getElementById('loginUser').value.trim();
-        const password = document.getElementById('loginPass').value.trim();
-        if (!username || !password) return showMsg(document.getElementById('authMsg'), 'Completa campos', true);
-        try {
-            const res = await fetch(`${API_BASE}/api/Auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (data.success) {
-                token = data.data.token;
-                localStorage.setItem('token', token);
-                currentUsername = username;
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
-                } catch(e) { isAdmin = false; }
-                usernameSpan.innerText = username;
-                adminSpan.innerText = isAdmin ? 'Admin' : '';
-                authScreen.style.display = 'none';
-                lobbyScreen.style.display = 'block';
-                connectSignalR();
-            } else {
-                showMsg(document.getElementById('authMsg'), `❌ ${data.message}`, true);
-            }
-        } catch { showMsg(document.getElementById('authMsg'), 'Error de conexión', true); }
-    }
-
-    function logout() {
-        localStorage.removeItem('token');
-        if (connection) connection.stop();
-        token = null;
-        currentUsername = '';
-        authScreen.style.display = 'block';
-        lobbyScreen.style.display = 'none';
-        gameScreen.style.display = 'none';
-        sidePanel.style.display = 'none';
-        currentRoom = null;
-    }
-
-    document.getElementById('registerBtn').onclick = register;
-    document.getElementById('loginBtn').onclick = login;
-    document.getElementById('logoutBtn').onclick = logout;
-
-    // ==================== LOBBY Y SALAS ====================
-    document.getElementById('createRoomBtn').onclick = async () => {
-        if (!currentUsername) return showMsg(document.getElementById('lobbyMsg'), 'No estás logueado', true);
-        const difficulty = document.getElementById('difficultySelect').value;
-        const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        if (connection) {
-            await connection.invoke("CreateRoom", roomCode, difficulty, currentUsername);
-            currentRoom = roomCode;
-            roomCodeSpan.innerText = roomCode;
-            lobbyScreen.style.display = 'none';
-            gameScreen.style.display = 'block';
-            sidePanel.style.display = 'block';
-            showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando jugadores...`, false);
-        }
-    };
-
-    document.getElementById('joinRoomBtn').onclick = async () => {
-        if (!currentUsername) return showMsg(document.getElementById('lobbyMsg'), 'No estás logueado', true);
-        const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
-        if (!code) return showMsg(document.getElementById('lobbyMsg'), 'Ingresa código', true);
-        if (connection) {
-            await connection.invoke("JoinRoom", code, currentUsername);
-            currentRoom = code;
-            roomCodeSpan.innerText = code;
-            lobbyScreen.style.display = 'none';
-            gameScreen.style.display = 'block';
-            sidePanel.style.display = 'block';
-            showMsg(gameMsgDiv, `Unido a sala ${code}`, false);
-        }
-    };
-
-    document.getElementById('leaveRoomBtn').onclick = async () => {
-        if (connection && currentRoom) {
-            await connection.invoke("LeaveRoom", currentRoom);
-        }
-        gameScreen.style.display = 'none';
-        sidePanel.style.display = 'none';
-        lobbyScreen.style.display = 'block';
-        currentRoom = null;
-    };
-
-    // ==================== TABLERO Y TECLADO ====================
-    function buildBoard(length) {
-        boardDiv.innerHTML = '';
-        for (let i = 0; i < maxAttempts; i++) {
-            const row = document.createElement('div');
-            row.className = 'row';
-            for (let j = 0; j < length; j++) {
-                const tile = document.createElement('div');
-                tile.className = 'tile';
-                tile.id = `tile-${i}-${j}`;
-                row.appendChild(tile);
-            }
-            boardDiv.appendChild(row);
-        }
-    }
-
-    function updateBoardFromAttempts(attemptsList) {
-        for (let i = 0; i < maxAttempts; i++) {
-            for (let j = 0; j < currentWordLength; j++) {
-                const tile = document.getElementById(`tile-${i}-${j}`);
-                if (tile) {
-                    tile.innerText = '';
-                    tile.className = 'tile';
-                }
-            }
-        }
-        for (let idx = 0; idx < attemptsList.length; idx++) {
-            const attempt = attemptsList[idx];
-            const guess = attempt.guess;
-            const result = attempt.result;
-            for (let pos = 0; pos < guess.length && pos < currentWordLength; pos++) {
-                const tile = document.getElementById(`tile-${idx}-${pos}`);
-                if (tile) {
-                    tile.innerText = guess[pos].toUpperCase();
-                    let statusClass = '';
-                    if (result[pos].status === 'correct') statusClass = 'correct';
-                    else if (result[pos].status === 'present') statusClass = 'present';
-                    else statusClass = 'absent';
-                    tile.classList.add(statusClass);
-                }
-            }
-        }
-        updateKeyboardFromAttempts(attemptsList);
-    }
-
-    function updateKeyboardFromAttempts(attemptsList) {
-        const keyState = {};
-        for (const attempt of attemptsList) {
-            const guess = attempt.guess;
-            const result = attempt.result;
-            for (let i = 0; i < guess.length; i++) {
-                const letter = guess[i].toUpperCase();
-                const status = result[i].status;
-                if (!keyState[letter]) keyState[letter] = status;
-                else if (status === 'correct') keyState[letter] = 'correct';
-                else if (status === 'present' && keyState[letter] !== 'correct') keyState[letter] = 'present';
-            }
-        }
-        document.querySelectorAll('.key').forEach(key => {
-            const letter = key.getAttribute('data-key');
-            if (letter && keyState[letter]) {
-                key.classList.remove('correct', 'present', 'absent');
-                key.classList.add(keyState[letter]);
-            }
-        });
-    }
-
-    function buildKeyboard() {
-        const rows = [
-            ['q','w','e','r','t','y','u','i','o','p'],
-            ['a','s','d','f','g','h','j','k','l','ñ'],
-            ['enter','z','x','c','v','b','n','m','backspace']
-        ];
-        keyboardDiv.innerHTML = '';
-        for (const row of rows) {
-            const rowDiv = document.createElement('div');
-            rowDiv.className = 'key-row';
-            for (const key of row) {
-                const btn = document.createElement('button');
-                btn.className = 'key';
-                if (key === 'enter') btn.classList.add('wide');
-                if (key === 'backspace') btn.classList.add('wide');
-                btn.textContent = key === 'enter' ? '⏎' : (key === 'backspace' ? '⌫' : key.toUpperCase());
-                btn.setAttribute('data-key', key);
-                btn.onclick = () => handleKeyPress(key);
-                rowDiv.appendChild(btn);
-            }
-            keyboardDiv.appendChild(rowDiv);
-        }
-    }
-
-    function handleKeyPress(key) {
-        if (!roundActive || !gameActive) return;
-        const currentRow = currentAttempts.length;
-        if (currentRow >= maxAttempts) return;
-        if (key === 'enter') {
-            if (currentLocalGuess.length === currentWordLength) {
-                connection.invoke("MakeGuess", currentRoom, currentLocalGuess, currentUsername);
-                currentLocalGuess = '';
-            } else {
-                showMsg(gameMsgDiv, `Debes ingresar ${currentWordLength} letras`, true);
-            }
-        } else if (key === 'backspace') {
-            if (currentLocalGuess.length > 0) {
-                currentLocalGuess = currentLocalGuess.slice(0, -1);
-                updateLocalRow(currentRow, currentLocalGuess);
-            }
-        } else {
-            if (currentLocalGuess.length < currentWordLength) {
-                currentLocalGuess += key;
-                updateLocalRow(currentRow, currentLocalGuess);
-            }
-        }
-    }
-
-    function updateLocalRow(rowIndex, guess) {
-        for (let i = 0; i < currentWordLength; i++) {
-            const tile = document.getElementById(`tile-${rowIndex}-${i}`);
-            if (tile) tile.innerText = i < guess.length ? guess[i].toUpperCase() : '';
-        }
-    }
-
-    window.addEventListener('keydown', (e) => {
-        const key = e.key;
-        if (key === 'Enter') handleKeyPress('enter');
-        else if (key === 'Backspace') handleKeyPress('backspace');
-        else if (/^[a-zA-Z]$/.test(key)) handleKeyPress(key.toLowerCase());
+    // ===== DEBUG =====
+    connection.on("JoinDebug", (room, connId) => {
+        console.log("JOIN:", room, connId);
     });
 
-    // ==================== SIGNALR ====================
-    function connectSignalR() {
-        if (connection) connection.stop();
-        connection = new signalR.HubConnectionBuilder()
-            .withUrl(`${API_BASE}/gameHub`)
-            .withAutomaticReconnect()
-            .build();
+    connection.on("GroupProbe", (room) => {
+        console.log("✅ EN GRUPO:", room);
+    });
 
-        connection.on("PlayersUpdate", (players) => {
-            playersListUl.innerHTML = '';
-            playerCountSpan.innerText = players.length;
-            players.forEach(p => {
-                const li = document.createElement('li');
-                const guessedIcon = p.hasGuessed ? '✅ ' : '';
-                li.innerHTML = `<span>${guessedIcon}${p.name}</span> <span>❤️ ${p.attemptsLeft} | ${p.status}</span>`;
-                playersListUl.appendChild(li);
-            });
-        });
+    connection.on("CountdownTick", (sec) => {
+        console.log("TICK:", sec);
+        document.getElementById("countdown").innerText = sec;
+    });
 
-        connection.on("WaitingForPlayers", (playerCount) => {
-            if (playerCount < 2) {
-                waitingMsgDiv.innerHTML = `⏳ Esperando al menos 2 jugadores... (${playerCount}/2)`;
-                waitingMsgDiv.style.display = 'block';
-                boardDiv.style.display = 'none';
-                keyboardDiv.style.display = 'none';
-                countdownDisplay.style.display = 'none';
-                gameActive = false;
-                roundActive = false;
-            } else {
-                waitingMsgDiv.innerHTML = `✅ Suficientes jugadores (${playerCount}/2). ¡El juego comenzará en breve!`;
-            }
-        });
+    connection.on("PlayersUpdate", (players) => {
+        console.log("PLAYERS:", players);
+    });
 
-        connection.on("CountdownTick", (seconds) => {
-            countdownDisplay.style.display = 'block';
-            countdownDisplay.innerText = seconds;
-            boardDiv.style.display = 'none';
-            keyboardDiv.style.display = 'none';
-            if (seconds === 0) {
-                countdownDisplay.style.display = 'none';
-            }
-        });
+    connection.on("WaitingForPlayers", (count) => {
+        setStatus("Esperando jugadores: " + count);
+    });
 
-        connection.on("RoundStarted", (wordLength) => {
-            currentWordLength = wordLength;
-            maxAttempts = 6;
-            buildBoard(wordLength);
-            currentAttempts = [];
-            currentLocalGuess = '';
-            gameActive = true;
-            roundActive = true;
-            boardDiv.style.display = 'block';
-            keyboardDiv.style.display = 'block';
-            waitingMsgDiv.style.display = 'none';
-            showMsg(gameMsgDiv, '¡Nueva ronda! Adivina la palabra para sobrevivir.', false);
-        });
+    connection.on("RoundStarted", (length) => {
+        currentWordLength = length;
+        currentAttempts = [];
+        currentGuess = "";
 
-        connection.on("GuessResult", (result) => {
-            if (result.success) {
-                const attempt = { guess: result.guess, result: result.resultArray };
-                currentAttempts.push(attempt);
-                updateBoardFromAttempts(currentAttempts);
-                if (result.gameCompleted) {
-                    gameActive = false;
-                    roundActive = false;
-                    if (result.won) showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
-                    else showMsg(gameMsgDiv, `😞 Fallaste. Has sido eliminado.`, true);
-                } else {
-                    gameActive = true;
-                }
-            } else {
-                showMsg(gameMsgDiv, result.error || 'Intento inválido', true);
-            }
-        });
+        buildBoard();
+        setStatus("¡Ronda iniciada!");
+    });
 
-        connection.on("RoundEnded", (survivors, word) => {
-            roundActive = false;
-            gameActive = false;
-            let msg = `Ronda terminada. Palabra: ${word}. Sobrevivientes: ${survivors.join(', ')}`;
-            showMsg(gameMsgDiv, msg, false);
-        });
+    connection.on("GuessResult", (res) => {
+        currentAttempts.push({ guess: res.guess, result: res.resultArray });
+        drawBoard();
+    });
 
-        connection.on("GameEnded", (winner) => {
-            roundActive = false;
-            gameActive = false;
-            if (winner) {
-                showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
-            } else {
-                showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
-            }
-            setTimeout(() => {
-                if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
-                gameScreen.style.display = 'none';
-                sidePanel.style.display = 'none';
-                lobbyScreen.style.display = 'block';
-                currentRoom = null;
-            }, 5000);
-        });
+    connection.on("Error", (e) => alert(e));
 
-        connection.on("PlayerEliminated", (playerName) => {
-            showMsg(gameMsgDiv, `💀 ${playerName} ha sido eliminado`, true);
-        });
+    connection.onclose(() => console.log("❌ desconectado"));
+    connection.onreconnecting(() => console.log("🔄 reconectando..."));
+    connection.onreconnected(() => console.log("✅ reconectado"));
 
-        connection.on("Error", (err) => showMsg(gameMsgDiv, err, true));
+    await connection.start();
+    console.log("✅ conectado");
+}
 
-        connection.start()
-            .then(() => console.log("SignalR conectado"))
-            .catch(err => console.error("SignalR error detallado:", err));
+// ================== SEGURIDAD ==================
+
+async function ensureConnection() {
+    if (!connection) {
+        await connectSignalR();
+    }
+    if (connection.state !== "Connected") {
+        await connection.start();
+    }
+}
+
+// ================== SALAS ==================
+
+async function createRoom() {
+    currentUsername = document.getElementById("username").value.trim();
+    if (!currentUsername) return alert("Pon usuario");
+
+    const room = Math.random().toString(36).substring(2,6).toUpperCase();
+
+    await ensureConnection();
+
+    await connection.invoke("CreateRoom", room, "normal", currentUsername);
+
+    currentRoom = room;
+    setStatus("Sala creada: " + room);
+}
+
+async function joinRoom() {
+    currentUsername = document.getElementById("username").value.trim();
+    const room = document.getElementById("roomInput").value.trim().toUpperCase();
+
+    if (!currentUsername || !room) return alert("Datos faltantes");
+
+    await ensureConnection();
+
+    await connection.invoke("JoinRoom", room, currentUsername);
+
+    currentRoom = room;
+    setStatus("Unido a " + room);
+}
+
+// ================== JUEGO ==================
+
+function buildBoard() {
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+
+    for (let i=0;i<6;i++){
+        const row = document.createElement("div");
+        for (let j=0;j<currentWordLength;j++){
+            const tile = document.createElement("div");
+            tile.className="tile";
+            tile.id=`t-${i}-${j}`;
+            row.appendChild(tile);
+        }
+        board.appendChild(row);
+    }
+}
+
+function drawBoard(){
+    for (let i=0;i<currentAttempts.length;i++){
+        const a = currentAttempts[i];
+
+        for (let j=0;j<a.guess.length;j++){
+            const tile = document.getElementById(`t-${i}-${j}`);
+            tile.innerText = a.guess[j];
+
+            const st = a.result[j].status;
+            tile.classList.add(st);
+        }
+    }
+}
+
+// ================== INPUT ==================
+
+window.addEventListener("keydown", e => {
+
+    if (!currentRoom) return;
+
+    if (e.key === "Enter") {
+        if (currentGuess.length === currentWordLength) {
+            connection.invoke("MakeGuess", currentRoom, currentGuess, currentUsername);
+            currentGuess="";
+        }
+    }
+    else if (e.key === "Backspace") {
+        currentGuess = currentGuess.slice(0,-1);
+    }
+    else if (/^[a-zA-Z]$/.test(e.key)) {
+        if (currentGuess.length < currentWordLength) {
+            currentGuess += e.key.toUpperCase();
+        }
     }
 
-    buildKeyboard();
+});
 
-    const savedToken = localStorage.getItem('token');
-    if (savedToken) {
-        token = savedToken;
-        authScreen.style.display = 'none';
-        lobbyScreen.style.display = 'block';
-        connectSignalR();
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            currentUsername = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
-            usernameSpan.innerText = currentUsername;
-            isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
-            adminSpan.innerText = isAdmin ? 'Admin' : '';
-        } catch(e) {}
-    } else {
-        authScreen.style.display = 'block';
-        lobbyScreen.style.display = 'none';
-    }
+// ================== UI ==================
+
+function setStatus(msg){
+    document.getElementById("status").innerText = msg;
+}
+
 </script>
+
 </body>
 </html>
