@@ -6,6 +6,12 @@ namespace WordGuessAPI.Hubs;
 public class GameHub : Hub
 {
     private static ConcurrentDictionary<string, Room> _rooms = new();
+    private readonly IHubContext<GameHub> _hubContext;
+
+    public GameHub(IHubContext<GameHub> hubContext)
+    {
+        _hubContext = hubContext;
+    }
 
     public async Task CreateRoom(string roomCode, string difficulty, string playerName)
     {
@@ -45,13 +51,11 @@ public class GameHub : Hub
         room.Players.TryAdd(Context.ConnectionId, player);
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
         
-        // Enviar lista actualizada a todos
-        await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
-        await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
+        await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
+        await _hubContext.Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
         
         Console.WriteLine($"Players in room {roomCode}: {room.Players.Count}");
         
-        // Si hay al menos 2 jugadores y no hay ronda activa ni countdown activo, iniciar countdown
         if (room.Players.Count >= 2 && !room.RoundActive && !room.CountdownActive)
         {
             Console.WriteLine("Iniciando countdown...");
@@ -65,11 +69,11 @@ public class GameHub : Hub
         {
             room.Players.TryRemove(Context.ConnectionId, out _);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomCode);
-            await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
+            await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
             if (room.Players.IsEmpty)
                 _rooms.TryRemove(roomCode, out _);
             else
-                await Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
+                await _hubContext.Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
         }
     }
 
@@ -84,7 +88,7 @@ public class GameHub : Hub
         {
             // Esperar hasta que haya al menos 2 jugadores (máximo 5 segundos)
             int waitCycles = 0;
-            while (room.Players.Count < 2 && waitCycles < 50) // 5 segundos máximo
+            while (room.Players.Count < 2 && waitCycles < 50)
             {
                 await Task.Delay(100);
                 waitCycles++;
@@ -97,7 +101,7 @@ public class GameHub : Hub
                 return;
             }
 
-            // Enviar cuenta regresiva 5,4,3,2,1
+            // Enviar cuenta regresiva 5,4,3,2,1 usando IHubContext
             for (int i = 5; i >= 0; i--)
             {
                 if (i == 0)
@@ -107,7 +111,7 @@ public class GameHub : Hub
                     return;
                 }
                 Console.WriteLine($"Enviando tick: {i}");
-                await Clients.Group(roomCode).SendAsync("CountdownTick", i);
+                await _hubContext.Clients.Group(roomCode).SendAsync("CountdownTick", i);
                 await Task.Delay(1000);
                 if (!_rooms.ContainsKey(roomCode)) return;
                 room = _rooms[roomCode];
@@ -134,7 +138,6 @@ public class GameHub : Hub
         room.CurrentWord = word.ToUpper();
         room.RoundActive = true;
 
-        // Reiniciar estados de jugadores vivos
         foreach (var p in room.Players.Values)
         {
             if (p.Status != "eliminated")
@@ -146,7 +149,7 @@ public class GameHub : Hub
             }
         }
 
-        await Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength);
+        await _hubContext.Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength);
         Console.WriteLine($"Ronda iniciada con palabra: {room.CurrentWord}");
     }
 
@@ -186,7 +189,7 @@ public class GameHub : Hub
         else if (player.AttemptsLeft <= 0)
         {
             player.Status = "eliminated";
-            await Clients.Group(roomCode).SendAsync("PlayerEliminated", player.Name);
+            await _hubContext.Clients.Group(roomCode).SendAsync("PlayerEliminated", player.Name);
         }
 
         await Clients.Caller.SendAsync("GuessResult", new
@@ -200,9 +203,8 @@ public class GameHub : Hub
             word = isCorrect ? room.CurrentWord : null
         });
 
-        await Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
+        await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
 
-        // Si todos los vivos adivinaron, terminar ronda
         var allAliveGuessed = room.Players.Values
             .Where(p => p.Status == "alive")
             .All(p => p.HasGuessedInRound);
@@ -224,22 +226,22 @@ public class GameHub : Hub
         foreach (var p in eliminated)
         {
             p.Status = "eliminated";
-            await Clients.Group(roomCode).SendAsync("PlayerEliminated", p.Name);
+            await _hubContext.Clients.Group(roomCode).SendAsync("PlayerEliminated", p.Name);
         }
 
         if (survivors.Count == 1)
         {
-            await Clients.Group(roomCode).SendAsync("GameEnded", survivors.First().Name);
+            await _hubContext.Clients.Group(roomCode).SendAsync("GameEnded", survivors.First().Name);
             _rooms.TryRemove(roomCode, out _);
         }
         else if (survivors.Count == 0)
         {
-            await Clients.Group(roomCode).SendAsync("GameEnded", null);
+            await _hubContext.Clients.Group(roomCode).SendAsync("GameEnded", null);
             _rooms.TryRemove(roomCode, out _);
         }
         else
         {
-            await Clients.Group(roomCode).SendAsync("RoundEnded", survivors.Select(s => s.Name).ToList(), room.CurrentWord);
+            await _hubContext.Clients.Group(roomCode).SendAsync("RoundEnded", survivors.Select(s => s.Name).ToList(), room.CurrentWord);
             _ = Task.Run(async () =>
             {
                 await Task.Delay(3000);
@@ -249,7 +251,7 @@ public class GameHub : Hub
         }
     }
 
-    // Métodos auxiliares
+    // Métodos auxiliares (sin cambios)
     private List<LetterResult> EvaluateGuess(string guess, string target)
     {
         guess = guess.ToUpper();
@@ -304,7 +306,7 @@ public class GameHub : Hub
     }
 }
 
-// Clases auxiliares (igual que antes)
+// Clases auxiliares (sin cambios)
 public class PlayerInRoom
 {
     public string ConnectionId { get; set; }
