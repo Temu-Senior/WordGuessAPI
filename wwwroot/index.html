@@ -409,6 +409,11 @@
             .withAutomaticReconnect()
             .build();
 
+        connection.on("TestMessage", (msg) => {
+            console.log("TestMessage recibido:", msg);
+            showMsg(gameMsgDiv, `📡 ${msg}`, false);
+        });
+
         connection.on("PlayersUpdate", (players) => {
             playersListUl.innerHTML = '';
             playerCountSpan.innerText = players.length;
@@ -435,6 +440,7 @@
         });
 
         connection.on("CountdownTick", (seconds) => {
+            console.log("CountdownTick recibido:", seconds);
             countdownDisplay.style.display = 'block';
             countdownDisplay.innerText = seconds;
             boardDiv.style.display = 'none';
@@ -445,6 +451,7 @@
         });
 
         connection.on("RoundStarted", (wordLength) => {
+            console.log("RoundStarted recibido, wordLength:", wordLength);
             currentWordLength = wordLength;
             maxAttempts = 6;
             buildBoard(wordLength);
