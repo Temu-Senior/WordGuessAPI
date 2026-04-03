@@ -6,81 +6,28 @@
     <title>Wordle Battle Royale</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
+        /* (Mismo CSS que antes, no lo repito por brevedad; puedes copiar el que ya tenías) */
         * { box-sizing: border-box; user-select: none; }
-        body {
-            background: #121213;
-            font-family: 'Clear Sans', 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+        body { background: #121213; font-family: 'Clear Sans', 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         .game-container { max-width: 1200px; width: 100%; margin: auto; display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
         .main-panel { flex: 2; min-width: 300px; }
         .side-panel { flex: 1; min-width: 250px; background: #1a1a1b; border-radius: 20px; padding: 15px; }
         h1 { text-align: center; font-size: 2rem; margin: 0 0 10px; }
         .auth-card, .lobby-card { background: #1a1a1b; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
-        input, select, button {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            background: #2c2c2e;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 1rem;
-        }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; background: #2c2c2e; border: none; border-radius: 8px; color: white; font-size: 1rem; }
         button { background: #538d4e; cursor: pointer; font-weight: bold; }
         button:hover { background: #6aaa64; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #1a1a1b; padding: 8px 15px; border-radius: 40px; }
-        .board {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-        .row {
-            display: flex;
-            justify-content: center;
-            gap: 5px;
-        }
-        .tile {
-            width: 60px;
-            height: 60px;
-            background: #3a3a3c;
-            border: 2px solid #3a3a3c;
-            font-size: 2rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-transform: uppercase;
-            color: white;
-        }
+        .board { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; align-items: center; }
+        .row { display: flex; justify-content: center; gap: 5px; }
+        .tile { width: 60px; height: 60px; background: #3a3a3c; border: 2px solid #3a3a3c; font-size: 2rem; font-weight: bold; display: flex; align-items: center; justify-content: center; text-transform: uppercase; color: white; }
         .tile.correct { background: #538d4e; border-color: #538d4e; }
         .tile.present { background: #b59f3b; border-color: #b59f3b; }
         .tile.absent { background: #3a3a3c; border-color: #3a3a3c; }
         .keyboard { margin: 20px 0; }
         .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
-        .key {
-            background: #818384;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-            font-size: 1rem;
-            padding: 12px 8px;
-            cursor: pointer;
-            text-transform: uppercase;
-            min-width: 32px;
-            flex: 1;
-            text-align: center;
-        }
+        .key { background: #818384; border: none; border-radius: 4px; color: white; font-weight: bold; font-size: 1rem; padding: 12px 8px; cursor: pointer; text-transform: uppercase; min-width: 32px; flex: 1; text-align: center; }
         .key.wide { flex: 1.5; }
         .key.correct { background: #538d4e; }
         .key.present { background: #b59f3b; }
@@ -89,11 +36,7 @@
         .players-list { list-style: none; padding: 0; margin: 10px 0; }
         .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
         .countdown { font-size: 5rem; text-align: center; margin: 30px 0; font-weight: bold; color: #facc15; }
-        @media (max-width: 700px) {
-            .tile { width: 45px; height: 45px; font-size: 1.5rem; }
-            .key { padding: 8px 4px; font-size: 0.8rem; }
-            .countdown { font-size: 3rem; }
-        }
+        @media (max-width: 700px) { .tile { width: 45px; height: 45px; font-size: 1.5rem; } .key { padding: 8px 4px; font-size: 0.8rem; } .countdown { font-size: 3rem; } }
     </style>
 </head>
 <body>
@@ -143,6 +86,7 @@
                 <button id="leaveRoomBtn" style="width:auto; background:#e74c3c;">Salir</button>
             </div>
             <div id="waitingMsg" class="message-area" style="background:#2c2c2e;"></div>
+            <button id="startGameBtn" style="display:none; background:#4caf50;">🎮 Iniciar partida (anfitrión)</button>
             <div id="countdownDisplay" class="countdown" style="display:none;"></div>
             <div id="board" class="board" style="display:none;"></div>
             <div id="keyboard" class="keyboard" style="display:none;"></div>
@@ -172,7 +116,8 @@
     let isAdmin = false;
     let currentLocalGuess = '';
     let currentUsername = '';
-    let isWaitingForResult = false; // Para evitar speedrun
+    let isWaitingForResult = false;
+    let currentOwner = ''; // nombre del anfitrión
 
     // DOM elements
     const authScreen = document.getElementById('authScreen');
@@ -189,6 +134,7 @@
     const usernameSpan = document.getElementById('usernameSpan');
     const adminSpan = document.getElementById('adminSpan');
     const waitingMsgDiv = document.getElementById('waitingMsg');
+    const startGameBtn = document.getElementById('startGameBtn');
 
     function showMsg(container, text, isError = false) {
         container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
@@ -267,6 +213,7 @@
         boardDiv.style.display = 'none';
         keyboardDiv.style.display = 'none';
         countdownDisplay.style.display = 'none';
+        startGameBtn.style.display = 'none';
     }
 
     document.getElementById('registerBtn').onclick = register;
@@ -286,7 +233,7 @@
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             sidePanel.style.display = 'block';
-            showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando jugadores...`, false);
+            showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando a que el anfitrión inicie la partida...`, false);
         }
     };
 
@@ -294,7 +241,7 @@
         if (!currentUsername) return showMsg(document.getElementById('lobbyMsg'), 'No estás logueado', true);
         let code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
         if (!code) return showMsg(document.getElementById('lobbyMsg'), 'Ingresa código', true);
-        document.getElementById('joinRoomCode').value = code; // Mostrar mayúsculas
+        document.getElementById('joinRoomCode').value = code;
         if (connection) {
             resetLocalState();
             await connection.invoke("JoinRoom", code, currentUsername);
@@ -303,7 +250,7 @@
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             sidePanel.style.display = 'block';
-            showMsg(gameMsgDiv, `Unido a sala ${code}`, false);
+            showMsg(gameMsgDiv, `Unido a sala ${code}. Esperando al anfitrión...`, false);
         }
     };
 
@@ -316,6 +263,14 @@
         sidePanel.style.display = 'none';
         lobbyScreen.style.display = 'block';
         currentRoom = null;
+    };
+
+    startGameBtn.onclick = async () => {
+        if (connection && currentRoom && currentUsername === currentOwner) {
+            await connection.invoke("StartGameByHost", currentRoom);
+        } else {
+            showMsg(gameMsgDiv, 'No eres el anfitrión', true);
+        }
     };
 
     // ==================== TABLERO Y TECLADO ====================
@@ -335,7 +290,6 @@
     }
 
     function updateBoardFromAttempts(attemptsList) {
-        // Limpiar todas las filas
         for (let i = 0; i < maxAttempts; i++) {
             for (let j = 0; j < currentWordLength; j++) {
                 const tile = document.getElementById(`tile-${i}-${j}`);
@@ -345,7 +299,6 @@
                 }
             }
         }
-        // Rellenar intentos
         for (let idx = 0; idx < attemptsList.length; idx++) {
             const attempt = attemptsList[idx];
             const guess = attempt.guess;
@@ -418,7 +371,6 @@
         if (key === 'enter') {
             if (currentLocalGuess.length === currentWordLength) {
                 isWaitingForResult = true;
-                // Deshabilitar visualmente los botones del teclado
                 document.querySelectorAll('.key').forEach(k => k.style.pointerEvents = 'none');
                 connection.invoke("MakeGuess", currentRoom, currentLocalGuess, currentUsername)
                     .catch(err => { console.error(err); isWaitingForResult = false; });
@@ -461,8 +413,15 @@
             .withAutomaticReconnect()
             .build();
 
-        connection.on("TestMessage", (msg) => {
-            console.log("TestMessage:", msg);
+        connection.on("RoomOwnerChanged", (ownerName) => {
+            currentOwner = ownerName;
+            if (currentUsername === currentOwner) {
+                startGameBtn.style.display = 'block';
+                waitingMsgDiv.innerHTML = 'Eres el anfitrión. Presiona "Iniciar partida" cuando todos estén listos.';
+            } else {
+                startGameBtn.style.display = 'none';
+                waitingMsgDiv.innerHTML = `Esperando a que el anfitrión (${currentOwner}) inicie la partida...`;
+            }
         });
 
         connection.on("PlayersUpdate", (players) => {
@@ -477,32 +436,18 @@
         });
 
         connection.on("WaitingForPlayers", (playerCount) => {
-            if (playerCount < 2) {
-                waitingMsgDiv.innerHTML = `⏳ Esperando al menos 2 jugadores... (${playerCount}/2)`;
-                waitingMsgDiv.style.display = 'block';
-                boardDiv.style.display = 'none';
-                keyboardDiv.style.display = 'none';
-                countdownDisplay.style.display = 'none';
-                gameActive = false;
-                roundActive = false;
-            } else {
-                waitingMsgDiv.innerHTML = `✅ Suficientes jugadores (${playerCount}/2). ¡El juego comenzará en breve!`;
-            }
+            // No hacemos nada automático; solo se muestra el mensaje de espera
         });
 
         connection.on("CountdownTick", (seconds) => {
-            console.log("CountdownTick:", seconds);
             countdownDisplay.style.display = 'block';
             countdownDisplay.innerText = seconds;
             boardDiv.style.display = 'none';
             keyboardDiv.style.display = 'none';
-            if (seconds === 0) {
-                countdownDisplay.style.display = 'none';
-            }
+            if (seconds === 0) countdownDisplay.style.display = 'none';
         });
 
         connection.on("RoundStarted", (wordLength) => {
-            console.log("RoundStarted, wordLength:", wordLength);
             currentWordLength = wordLength;
             maxAttempts = 6;
             buildBoard(wordLength);
@@ -511,11 +456,11 @@
             gameActive = true;
             roundActive = true;
             isWaitingForResult = false;
-            // Reactivar teclado
             document.querySelectorAll('.key').forEach(k => k.style.pointerEvents = '');
             boardDiv.style.display = 'block';
             keyboardDiv.style.display = 'block';
             waitingMsgDiv.style.display = 'none';
+            startGameBtn.style.display = 'none';
             showMsg(gameMsgDiv, `¡Nueva ronda! Adivina la palabra de ${wordLength} letras.`, false);
         });
 
