@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace WordGuessAPI.Hubs;
 
-// ==================== CLASES AUXILIARES (dentro del mismo archivo) ====================
+// ==================== CLASES AUXILIARES ====================
 public class PlayerInRoom
 {
     public string ConnectionId { get; set; } = string.Empty;
@@ -23,6 +23,7 @@ public class Room
     public bool RoundActive { get; set; }
     public bool CountdownActive { get; set; }
     public ConcurrentDictionary<string, PlayerInRoom> Players { get; set; } = new();
+    public HashSet<string> UsedWords { get; set; } = new(); // Palabras ya usadas en esta sala
 }
 
 public class AttemptInfo
@@ -34,7 +35,7 @@ public class AttemptInfo
 public class LetterResult
 {
     public char Letter { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty; // correct, present, absent
 }
 
 // ==================== HUB PRINCIPAL ====================
@@ -48,6 +49,7 @@ public class GameHub : Hub
         _hubContext = hubContext;
     }
 
+    // ==================== SALAS ====================
     public async Task CreateRoom(string roomCode, string difficulty, string playerName)
     {
         Console.WriteLine($"CreateRoom: {roomCode}, difficulty: {difficulty}, player: {playerName}");
@@ -94,8 +96,7 @@ public class GameHub : Hub
         // Si hay al menos 2 jugadores y no hay ronda activa, iniciar countdown
         if (room.Players.Count >= 2 && !room.RoundActive)
         {
-            // Resetear por si quedó trabado
-            room.CountdownActive = false;
+            room.CountdownActive = false; // reset por si quedó trabado
             Console.WriteLine("Iniciando countdown...");
             _ = Task.Run(() => StartCountdown(roomCode));
         }
@@ -115,6 +116,7 @@ public class GameHub : Hub
         }
     }
 
+    // ==================== COUNTDOWN Y RONDAS ====================
     private async Task StartCountdown(string roomCode)
     {
         Console.WriteLine($"StartCountdown called for {roomCode}");
@@ -126,7 +128,7 @@ public class GameHub : Hub
 
         try
         {
-            // Enviar mensaje de prueba para verificar el grupo
+            // Mensaje de prueba para verificar grupo
             await _hubContext.Clients.Group(roomCode).SendAsync("TestMessage", "Iniciando countdown");
             Console.WriteLine("Test message sent to group");
 
@@ -163,10 +165,19 @@ public class GameHub : Hub
         if (!_rooms.TryGetValue(roomCode, out var room)) return;
         if (room.RoundActive) return;
 
-        var word = GetWordByLength(room.WordLength);
+        // Obtener palabra nueva (no usada en esta sala)
+        var word = GetNewWord(room.WordLength, room.UsedWords);
+        if (string.IsNullOrEmpty(word))
+        {
+            // Si no hay más palabras únicas, reiniciamos el historial (opcional)
+            room.UsedWords.Clear();
+            word = GetWordByLength(room.WordLength);
+        }
         room.CurrentWord = word.ToUpper();
+        room.UsedWords.Add(room.CurrentWord);
         room.RoundActive = true;
 
+        // Reiniciar estados de jugadores vivos
         foreach (var p in room.Players.Values)
         {
             if (p.Status != "eliminated")
@@ -182,6 +193,7 @@ public class GameHub : Hub
         Console.WriteLine($"Round started with word: {room.CurrentWord}");
     }
 
+    // ==================== LÓGICA DE JUEGO ====================
     public async Task MakeGuess(string roomCode, string guess, string playerName)
     {
         if (!_rooms.TryGetValue(roomCode, out var room) || !room.RoundActive)
@@ -234,6 +246,7 @@ public class GameHub : Hub
 
         await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
 
+        // Si todos los vivos adivinaron, terminar ronda
         var allAliveGuessed = room.Players.Values
             .Where(p => p.Status == "alive")
             .All(p => p.HasGuessedInRound);
@@ -287,6 +300,8 @@ public class GameHub : Hub
         target = target.ToUpper();
         var result = new List<LetterResult>();
         var targetCount = target.GroupBy(c => c).ToDictionary(g => g.Key, g => g.Count());
+        
+        // Primera pasada: letras correctas
         for (int i = 0; i < guess.Length; i++)
         {
             char c = guess[i];
@@ -295,8 +310,12 @@ public class GameHub : Hub
                 result.Add(new LetterResult { Letter = c, Status = "correct" });
                 targetCount[c]--;
             }
-            else result.Add(null);
+            else
+            {
+                result.Add(null);
+            }
         }
+        // Segunda pasada: letras presentes pero mal ubicadas
         for (int i = 0; i < guess.Length; i++)
         {
             if (result[i] != null) continue;
@@ -306,21 +325,59 @@ public class GameHub : Hub
                 result[i] = new LetterResult { Letter = c, Status = "present" };
                 targetCount[c]--;
             }
-            else result[i] = new LetterResult { Letter = c, Status = "absent" };
+            else
+            {
+                result[i] = new LetterResult { Letter = c, Status = "absent" };
+            }
         }
         return result;
     }
 
-    private string GetWordByLength(int length)
+    // Devuelve una palabra nueva no usada en la sala (si es posible)
+    private string GetNewWord(int length, HashSet<string> usedWords)
+    {
+        var allWords = GetAllWordsByLength(length);
+        var available = allWords.Except(usedWords).ToList();
+        if (available.Count == 0) return null;
+        return available[new Random().Next(available.Count)];
+    }
+
+    // Lista completa de palabras por longitud (ampliable)
+    private List<string> GetAllWordsByLength(int length)
     {
         var words = new Dictionary<int, List<string>>
         {
-            { 4, new List<string> { "CASA", "GATO", "LUNA", "SOL", "RICO" } },
-            { 5, new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA" } },
-            { 6, new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS" } }
+            { 4, new List<string> {
+                "CASA", "GATO", "LUNA", "RICO", "MESA", "PISO", "MANO", "SALA", "COPA", "BOCA",
+                "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA",
+                "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UÑA", "VINO", "ROSA", "CLAR", "FLOR",
+                "AZUL", "VERD", "NIEV", "FUEG", "HIEL", "JEFE", "KILO", "LADO", "MADRE", "NARIZ",
+                "OJO", "PADRE", "QUESO", "RÍO", "SALUD", "TIGRE", "ÁRBOL", "CABLE", "DEDO"
+            } },
+            { 5, new List<string> {
+                "MUNDO", "RATON", "SILLA", "PERRO", "MESA", "PLUMA", "CARRO", "FLOR", "MANO", "CASA",
+                "GATO", "LUNA", "SOL", "RICO", "PISO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA",
+                "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO",
+                "TAPA", "UÑA", "VINO", "ÁRBOL", "CABLE", "DEDO", "FUEGO", "HIELO", "JEFE", "KILO", "LADO",
+                "MADRE", "NARIZ", "OJO", "PADRE", "QUESO", "RÍO", "SALUD", "TIGRE", "ROBLE", "NUBE", "LLUVIA"
+            } },
+            { 6, new List<string> {
+                "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS", "RATONES", "SILLAS", "PERROS", "MESAS",
+                "PLUMAS", "CARROS", "FLORES", "MANOS", "CASAS", "GATOS", "LUNAS", "SOLES", "RICOS", "PISOS",
+                "SALAS", "COPAS", "BOCAS", "RATAS", "PATOS", "VACAS", "LOMAS", "PALAS", "MOTOS", "FOCAS",
+                "BOTAS", "COLAS", "LATAS", "MULAS", "NIDOS", "PICOS", "SAPOS", "TAPAS", "UÑAS", "VINOS",
+                "ÁRBOLES", "CABLES", "DEDOS", "FUEGOS", "HIELOS", "JEFES", "KILOS", "LADOS", "MADRES",
+                "NARICES", "OJOS", "PADRES", "QUESOS", "RÍOS", "SALUDOS", "TIGRES", "ROBLES", "NUBES", "LLUVIAS"
+            } }
         };
-        var list = words.ContainsKey(length) ? words[length] : words[5];
-        return list[new Random().Next(list.Count)];
+        return words.ContainsKey(length) ? words[length] : new List<string>();
+    }
+
+    // Fallback: obtener palabra sin control de unicidad (por si se acaban)
+    private string GetWordByLength(int length)
+    {
+        var all = GetAllWordsByLength(length);
+        return all.Count > 0 ? all[new Random().Next(all.Count)] : length == 4 ? "CASA" : length == 5 ? "MUNDO" : "PROBAR";
     }
 
     private object GetPlayersList(Room room)
