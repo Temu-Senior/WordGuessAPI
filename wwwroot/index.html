@@ -435,19 +435,23 @@
         updateKeyboardFromAttempts(attemptsList);
     }
 
+    // Función que actualiza los colores del teclado según todos los intentos acumulados
     function updateKeyboardFromAttempts(attemptsList) {
         const keyState = {};
+        // Recorrer todos los intentos en orden
         for (const attempt of attemptsList) {
             const guess = attempt.guess;
             const result = attempt.result;
             for (let i = 0; i < guess.length; i++) {
                 const letter = guess[i].toUpperCase();
                 const status = result[i].status;
+                // Prioridad: correct > present > absent
                 if (!keyState[letter]) keyState[letter] = status;
                 else if (status === 'correct') keyState[letter] = 'correct';
                 else if (status === 'present' && keyState[letter] !== 'correct') keyState[letter] = 'present';
             }
         }
+        // Aplicar clases a las teclas
         document.querySelectorAll('.key').forEach(key => {
             const letter = key.getAttribute('data-key');
             if (letter && keyState[letter]) {
@@ -597,7 +601,7 @@
                 const attempt = { guess: result.guess, result: result.resultArray };
                 currentAttempts.push(attempt);
                 updateBoardFromAttempts(currentAttempts);
-                // Forzar actualización del teclado
+                // Forzar actualización del teclado con todos los intentos
                 updateKeyboardFromAttempts(currentAttempts);
                 if (result.gameCompleted) {
                     gameActive = false;

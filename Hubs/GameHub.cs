@@ -257,8 +257,8 @@ public class GameHub : Hub
             return;
         }
 
+        // Evaluar el intento (Wordle-style, maneja letras repetidas correctamente)
         var result = EvaluateGuess(guess, room.CurrentWord);
-        // Convertir a formato para el frontend
         var resultArray = result.Select(r => new { letter = r.Letter, status = r.Status }).ToList();
 
         player.Attempts.Add(new AttemptInfo { Guess = guess, Result = result });
@@ -275,17 +275,13 @@ public class GameHub : Hub
             await _hubContext.Clients.Group(roomCode).SendAsync("PlayerEliminated", player.Name);
         }
 
-        string wordToSend = null;
-        if (isCorrect)
-        {
-            wordToSend = room.CurrentWord;
-        }
+        string wordToSend = isCorrect ? room.CurrentWord : null;
 
         await Clients.Caller.SendAsync("GuessResult", new
         {
             success = true,
             guess,
-            resultArray = resultArray,   // <-- clave para el teclado coloreado
+            resultArray = resultArray,   // <-- clave para colorear teclado
             attemptsLeft = player.AttemptsLeft,
             gameCompleted = (isCorrect || player.Status == "eliminated"),
             won = isCorrect,
@@ -348,6 +344,7 @@ public class GameHub : Hub
         var result = new List<LetterResult>();
         var targetCount = target.GroupBy(c => c).ToDictionary(g => g.Key, g => g.Count());
 
+        // Primera pasada: marcar letras correctas
         for (int i = 0; i < guess.Length; i++)
         {
             char c = guess[i];
@@ -361,6 +358,8 @@ public class GameHub : Hub
                 result.Add(null);
             }
         }
+
+        // Segunda pasada: marcar letras presentes (amarillo) o ausentes (gris)
         for (int i = 0; i < guess.Length; i++)
         {
             if (result[i] != null) continue;
@@ -388,11 +387,11 @@ public class GameHub : Hub
 
     private List<string> GetAllWordsByLength(int length)
     {
-        // Aquí van tus listas de palabras de 4, 5 y 6 letras (las que ya tienes)
-        // Por brevedad no las repito, pero debes incluir las listas completas.
-        var palabras4 = new List<string> { /* tus palabras de 4 letras */ };
-        var palabras5 = new List<string> { /* tus palabras de 5 letras */ };
-        var palabras6 = new List<string> { /* tus palabras de 6 letras */ };
+        // Asegúrate de que estas listas contengan SOLO palabras de 4, 5 y 6 letras.
+        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA", "PISO", "MANO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UNAS", "VINO", "ROSA", "FLOR", "AZUL", "VERDE", "NIEVE", "FUEGO", "HIELO", "JEFE", "KILO", "LADO", "MADRE", "NARIZ", "OJO", "PADRE", "QUESO", "RIOS", "SALUD", "TIGRE", "ARBOL", "CABLE", "DEDO", "PERA", "MELON", "UVAS", "PAN", "ARROZ", "SOPA", "CALDO", "CARNE", "AVE", "BUEY", "CERDO", "POLLO", "HUEVO", "LECHE", "CREMA" };
+        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA", "PLUMA", "CARRO", "FLOR", "MANO", "CASA", "GATO", "LUNA", "SOL", "RICO", "PISO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UÑA", "VINO", "ARBOL", "CABLE", "DEDO", "FUEGO", "HIELO", "JEFE", "KILO", "LADO", "MADRE", "NARIZ", "OJO", "PADRE", "QUESO", "RIO", "SALUD", "TIGRE", "ROBLE", "NUBE", "LLUVIA", "CONEJO", "CABALLO", "OVEJA", "CERDO", "CABRA", "BURRO", "LEON", "JAGUAR", "PANTER", "GUEPAR", "LOBO", "ZORRO", "OSO", "CIERVO", "ALCE", "JIRAFA", "ELEFANTE", "RINOCER", "HIPOPO", "CANGREJO", "LANGOSTA", "CAMARON", "PULPO", "CALAMAR", "MEDUSA", "ESTRELLA", "ERIZO", "CORAL", "BALLENA", "DELFIN", "TIBURON", "RAYA", "MANTARRAYA", "SALMON", "TRUCHA", "ATUN", "BACALAO", "MERLUZA", "LENGUADO", "RODABALLO", "DORADA", "BREMA", "CARPA", "PEZ", "RANA", "TRITON", "SALAMANDRA", "LAGARTIJA", "GECKO", "IGUANA", "CAMALEON", "SERPIENTE", "VIBORA", "COBRA", "BOA", "PITON", "ANACONDA", "COCODRILO", "CAIMAN", "ALIGATOR", "TORTUGA", "GALAPAGO", "AVE", "PAJARO", "GORRION", "CANARIO", "PERICO", "LORO", "GUACAMAYA", "TUCAN", "COLIBRI", "AGUILA", "HALCON", "BUITRE", "CONDOR", "FLAMENCO", "PELICANO", "CIGÜEÑA", "GRULLA", "GARZA", "PATIO", "PATO", "GANSO", "CISNE", "PAVO", "FAISAN", "PERDIZ", "CODORNIZ", "PALOMA", "TORTOLA", "CUERVO", "URRACA", "GRAJO", "CHOVA", "MIRLO", "ZORZAL", "RUISENOR", "CALANDRIA", "ALONDRA" };
+        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS", "RATONES", "SILLAS", "PERROS", "MESAS", "PLUMAS", "CARROS", "FLORES", "MANOS", "CASAS", "GATOS", "LUNAS", "SOLES", "RICOS", "PISOS", "SALAS", "COPAS", "BOCAS", "RATAS", "PATOS", "VACAS", "LOMAS", "PALAS", "MOTOS", "FOCAS", "BOTAS", "COLAS", "LATAS", "MULAS", "NIDOS", "PICOS", "SAPOS", "TAPAS", "UNAS", "VINOS", "ARBOLES", "CABLES", "DEDOS", "FUEGOS", "HIELOS", "JEFES", "KILOS", "LADOS", "MADRES", "NARICES", "OJOS", "PADRES", "QUESOS", "RIOS", "SALUDOS", "TIGRES", "ROBLES", "NUBES", "LLUVIAS", "CABALLO", "CONEJO", "CORDER", "CABRAS", "BURROS", "LEONES", "JAGUAR", "PANTER", "GUEPAR", "LOBOS", "ZORROS", "OSOS", "CIERVOS", "ALCES", "JIRAFAS", "ELEFANT", "RINOCER", "HIPOPOT", "CANGREJ", "LANGOST", "CAMARON", "PULPOS", "CALAMAR", "MEDUSAS", "ESTRELL", "ERIZOS", "CORALES", "BALLENA", "DELFINES", "TIBURON", "RAYAS", "MANTAS", "SALMON", "TRUCHAS", "ATUNES", "BACALAO", "MERLUZA", "LENGUAD", "RODABAL", "DORADAS", "BREMAS", "CARDUMEN", "RANAS", "TRITONES", "SALAMAN", "LAGARTI", "GECKOS", "IGUANAS", "CAMALEON", "SERPIEN", "VIBORAS", "COBRAS", "BOAS", "PITONES", "ANACOND", "COCODRIL", "CAIMANES", "ALIGATO", "TORTUGAS", "GALAPAG", "AVES", "PAJAROS", "GORRION", "CANARIO", "PERICOS", "LOROS", "GUACAMA", "TUCANES", "COLIBRI", "AGUILAS", "HALCONES", "BUITRES", "CONDORES", "FLAMENC", "PELICAN", "CIGÜEÑA", "GRULLAS", "GARZAS", "PATIOS", "GANSOS", "CISNES", "PAVOS", "FAISANES", "PERDICES", "CODORNIZ", "PALOMAS", "TORTOLAS", "CUERVOS", "URRACAS", "GRAJOS", "CHOVAS", "MIRLOS", "ZORZALES", "RUISENOR", "CALANDRI", "ALONDRAS" };
+
         return length switch
         {
             4 => palabras4,
