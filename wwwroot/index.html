@@ -152,7 +152,7 @@
     let isWaitingForResult = false;
     let currentOwner = '';
     let gameInProgress = false;
-    let lastWord = ''; // Guardar la última palabra de la ronda
+    let lastWord = '';
 
     // ==================== SOUND SYSTEM ====================
     let audioCtx = null;
@@ -186,46 +186,36 @@
     }
 
     function playTick() { playBeep(880, 0.08, 0.3); }
-    
     function playFanfare() {
         if (!soundEnabled) return;
         playBeep(523.25, 0.2, 0.3);
         setTimeout(() => playBeep(659.25, 0.2, 0.3), 200);
         setTimeout(() => playBeep(783.99, 0.4, 0.3), 400);
     }
-    
-    // Sonido "tititirititi" (una melodía corta y alegre)
     function playTitiTiriTiti() {
         if (!soundEnabled) return;
-        // Secuencia de notas: E5, G5, A5, B5, C6 (rápido)
-        // Duración de cada nota: 0.1s, última un poco más larga
-        playBeep(659.25, 0.1, 0.4);   // Mi5
-        setTimeout(() => playBeep(783.99, 0.1, 0.4), 110);  // Sol5
-        setTimeout(() => playBeep(880.00, 0.1, 0.4), 220);  // La5
-        setTimeout(() => playBeep(987.77, 0.12, 0.4), 330); // Si5
-        setTimeout(() => playBeep(1046.50, 0.2, 0.4), 460); // Do6
+        playBeep(659.25, 0.1, 0.4);
+        setTimeout(() => playBeep(783.99, 0.1, 0.4), 110);
+        setTimeout(() => playBeep(880.00, 0.1, 0.4), 220);
+        setTimeout(() => playBeep(987.77, 0.12, 0.4), 330);
+        setTimeout(() => playBeep(1046.50, 0.2, 0.4), 460);
     }
-    
-    // Sonido de error (tacha) - buzzer descendente
     function playWrongSound() {
         if (!soundEnabled) return;
         playBeep(330, 0.15, 0.5);
         setTimeout(() => playBeep(261.63, 0.2, 0.5), 150);
         setTimeout(() => playBeep(196.00, 0.3, 0.5), 350);
     }
-    
     function playSadTrombone() {
         if (!soundEnabled) return;
         playBeep(440, 0.3, 0.4);
         setTimeout(() => playBeep(349.23, 0.5, 0.4), 300);
     }
-    
     function playEliminated() {
         if (!soundEnabled) return;
         playBeep(220, 0.2, 0.4);
         setTimeout(() => playBeep(174.61, 0.3, 0.4), 250);
     }
-    
     function playRoundEnd(survivors) {
         if (!soundEnabled) return;
         if (survivors && survivors.length > 0) playBeep(330, 0.6, 0.3);
@@ -590,6 +580,10 @@
             roundActive = true;
             isWaitingForResult = false;
             document.querySelectorAll('.key').forEach(k => k.style.pointerEvents = '');
+            // Limpiar teclado visual al empezar nueva ronda
+            document.querySelectorAll('.key').forEach(key => {
+                key.classList.remove('correct', 'present', 'absent');
+            });
             boardDiv.style.display = 'block';
             keyboardDiv.style.display = 'block';
             waitingMsgDiv.style.display = 'none';
@@ -603,11 +597,13 @@
                 const attempt = { guess: result.guess, result: result.resultArray };
                 currentAttempts.push(attempt);
                 updateBoardFromAttempts(currentAttempts);
+                // Forzar actualización del teclado
+                updateKeyboardFromAttempts(currentAttempts);
                 if (result.gameCompleted) {
                     gameActive = false;
                     roundActive = false;
                     if (result.won) {
-                        playTitiTiriTiti();  // Sonido "tititirititi" al acertar
+                        playTitiTiriTiti();
                         showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
                     } else {
                         playWrongSound();
