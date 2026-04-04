@@ -8,21 +8,34 @@
     <style>
         * { box-sizing: border-box; user-select: none; }
         body {
-            background: #121213;
-            font-family: 'Clear Sans', 'Segoe UI', Arial, sans-serif;
             margin: 0;
             padding: 20px;
+            font-family: 'Clear Sans', 'Segoe UI', Arial, sans-serif;
             color: #fff;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.3s ease;
+        }
+        /* Fondo por defecto (pantalla de juego) */
+        body.game-bg {
+            background: #121213;
+        }
+        body.login-bg {
+            background-image: url('/bg-login.jpg');
+        }
+        body.lobby-bg {
+            background-image: url('/bg-lobby.jpg');
         }
         .game-container { max-width: 1200px; width: 100%; margin: auto; display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
         .main-panel { flex: 2; min-width: 300px; }
-        .side-panel { flex: 1; min-width: 250px; background: #1a1a1b; border-radius: 20px; padding: 15px; }
+        .side-panel { flex: 1; min-width: 250px; background: rgba(26, 26, 27, 0.9); border-radius: 20px; padding: 15px; backdrop-filter: blur(4px); }
         h1 { text-align: center; font-size: 2rem; margin: 0 0 10px; }
-        .auth-card, .lobby-card { background: #1a1a1b; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+        .auth-card, .lobby-card { background: rgba(26, 26, 27, 0.9); border-radius: 20px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(4px); }
         input, select, button {
             width: 100%;
             padding: 12px;
@@ -36,7 +49,7 @@
         button { background: #538d4e; cursor: pointer; font-weight: bold; }
         button:hover { background: #6aaa64; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #1a1a1b; padding: 8px 15px; border-radius: 40px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(26, 26, 27, 0.9); padding: 8px 15px; border-radius: 40px; backdrop-filter: blur(4px); }
         .board { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; align-items: center; }
         .row { display: flex; justify-content: center; gap: 5px; }
         .tile {
@@ -58,7 +71,7 @@
         .key.correct { background: #538d4e; }
         .key.present { background: #b59f3b; }
         .key.absent { background: #3a3a3c; }
-        .message-area { background: #1a1a1b; border-radius: 16px; padding: 12px; margin: 10px 0; text-align: center; }
+        .message-area { background: rgba(26, 26, 27, 0.9); border-radius: 16px; padding: 12px; margin: 10px 0; text-align: center; backdrop-filter: blur(4px); }
         .players-list { list-style: none; padding: 0; margin: 10px 0; }
         .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
         .countdown { font-size: 5rem; text-align: center; margin: 30px 0; font-weight: bold; color: #facc15; }
@@ -69,7 +82,7 @@
         }
     </style>
 </head>
-<body>
+<body class="login-bg">
 <div class="game-container">
     <div class="main-panel">
         <h1>⚔️ WORDLE BATTLE ROYALE</h1>
@@ -148,7 +161,7 @@
     let currentUsername = '';
     let isWaitingForResult = false;
     let currentOwner = '';
-    let gameInProgress = false;  // Indica si el juego ya comenzó (countdown o ronda activa)
+    let gameInProgress = false;
 
     // DOM elements
     const authScreen = document.getElementById('authScreen');
@@ -166,6 +179,14 @@
     const adminSpan = document.getElementById('adminSpan');
     const waitingMsgDiv = document.getElementById('waitingMsg');
     const startGameBtn = document.getElementById('startGameBtn');
+
+    // Cambiar fondo según pantalla
+    function setBackground(screen) {
+        document.body.classList.remove('login-bg', 'lobby-bg', 'game-bg');
+        if (screen === 'login') document.body.classList.add('login-bg');
+        else if (screen === 'lobby') document.body.classList.add('lobby-bg');
+        else if (screen === 'game') document.body.classList.add('game-bg');
+    }
 
     function showMsg(container, text, isError = false) {
         container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
@@ -214,6 +235,7 @@
                 adminSpan.innerText = isAdmin ? 'Admin' : '';
                 authScreen.style.display = 'none';
                 lobbyScreen.style.display = 'block';
+                setBackground('lobby');
                 connectSignalR();
             } else {
                 showMsg(document.getElementById('authMsg'), `❌ ${data.message}`, true);
@@ -231,6 +253,7 @@
         gameScreen.style.display = 'none';
         sidePanel.style.display = 'none';
         currentRoom = null;
+        setBackground('login');
         resetLocalState();
     }
 
@@ -265,6 +288,7 @@
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             sidePanel.style.display = 'block';
+            setBackground('game');
             showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando a que el anfitrión inicie la partida...`, false);
         }
     };
@@ -282,6 +306,7 @@
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             sidePanel.style.display = 'block';
+            setBackground('game');
             showMsg(gameMsgDiv, `Unido a sala ${code}. Esperando al anfitrión...`, false);
         }
     };
@@ -294,6 +319,7 @@
         gameScreen.style.display = 'none';
         sidePanel.style.display = 'none';
         lobbyScreen.style.display = 'block';
+        setBackground('lobby');
         currentRoom = null;
     };
 
@@ -546,6 +572,7 @@
                 gameScreen.style.display = 'none';
                 sidePanel.style.display = 'none';
                 lobbyScreen.style.display = 'block';
+                setBackground('lobby');
                 currentRoom = null;
             }, 5000);
         });
@@ -574,6 +601,7 @@
         token = savedToken;
         authScreen.style.display = 'none';
         lobbyScreen.style.display = 'block';
+        setBackground('lobby');
         connectSignalR();
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
@@ -585,6 +613,7 @@
     } else {
         authScreen.style.display = 'block';
         lobbyScreen.style.display = 'none';
+        setBackground('login');
     }
 </script>
 </body>
