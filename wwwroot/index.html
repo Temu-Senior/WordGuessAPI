@@ -25,7 +25,7 @@
             background: #121213;
         }
         body.login-bg {
-            background-image: url('/bg-login.png');
+            background-image: url('/bg-login.jpg');
         }
         body.lobby-bg {
             background-image: url('/bg-lobby.png');
@@ -88,6 +88,24 @@
         .players-list { list-style: none; padding: 0; margin: 10px 0; }
         .players-list li { padding: 8px; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; }
         .countdown { font-size: 5rem; text-align: center; margin: 30px 0; font-weight: bold; color: #facc15; }
+        /* Botón de sonido */
+        .sound-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2c2c2e;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
         @media (max-width: 700px) {
             .tile { width: 45px; height: 45px; font-size: 1.5rem; }
             .key { padding: 8px 4px; font-size: 0.8rem; }
@@ -167,6 +185,9 @@
     </div>
 </div>
 
+<!-- Botón de sonido -->
+<div id="soundToggle" class="sound-btn">🔊</div>
+
 <script>
     const API_BASE = window.location.origin;
     let token = null;
@@ -183,6 +204,77 @@
     let isWaitingForResult = false;
     let currentOwner = '';
     let gameInProgress = false;
+
+    // ==================== SOUND SYSTEM ====================
+    let audioCtx = null;
+    let soundEnabled = true;
+    const soundToggleBtn = document.getElementById('soundToggle');
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function playBeep(frequency = 880, duration = 0.1, volume = 0.3) {
+        if (!soundEnabled) return;
+        try {
+            initAudio();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = frequency;
+            gain.gain.setValueAtTime(volume, now);
+            gain.gain.exponentialRampToValueAtTime(0.00001, now + duration);
+            osc.start();
+            osc.stop(now + duration);
+        } catch(e) { console.warn("Audio error:", e); }
+    }
+
+    function playTick() {
+        playBeep(880, 0.06, 0.2);
+    }
+
+    function playFanfare() {
+        if (!soundEnabled) return;
+        playBeep(523.25, 0.2, 0.25);
+        setTimeout(() => playBeep(659.25, 0.2, 0.25), 200);
+        setTimeout(() => playBeep(783.99, 0.4, 0.25), 400);
+    }
+
+    function playSadTrombone() {
+        if (!soundEnabled) return;
+        playBeep(440, 0.3, 0.25);
+        setTimeout(() => playBeep(349.23, 0.5, 0.25), 300);
+    }
+
+    function playEliminated() {
+        if (!soundEnabled) return;
+        playBeep(220, 0.2, 0.3);
+        setTimeout(() => playBeep(174.61, 0.3, 0.3), 250);
+    }
+
+    function playRoundEnd(survivors) {
+        if (!soundEnabled) return;
+        if (survivors && survivors.length > 0) {
+            playBeep(330, 0.5, 0.2);
+        } else {
+            playSadTrombone();
+        }
+    }
+
+    soundToggleBtn.onclick = () => {
+        soundEnabled = !soundEnabled;
+        soundToggleBtn.innerText = soundEnabled ? "🔊" : "🔇";
+        if (soundEnabled && audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    };
 
     // DOM elements
     const authScreen = document.getElementById('authScreen');
@@ -217,6 +309,7 @@
 
     // ==================== AUTENTICACIÓN ====================
     async function register() {
+        initAudio(); // activar audio en primera interacción
         const username = document.getElementById('regUser').value.trim();
         const password = document.getElementById('regPass').value.trim();
         if (!username || !password) return showMsg(document.getElementById('authMsg'), 'Completa ambos campos', true);
@@ -235,6 +328,7 @@
     }
 
     async function login() {
+        initAudio(); // activar audio en primera interacción
         const username = document.getElementById('loginUser').value.trim();
         const password = document.getElementById('loginPass').value.trim();
         if (!username || !password) return showMsg(document.getElementById('authMsg'), 'Completa ambos campos', true);
@@ -521,6 +615,7 @@
         });
 
         connection.on("CountdownTick", (seconds) => {
+            playTick(); // sonido en cada tick
             if (!gameInProgress) {
                 gameInProgress = true;
                 startGameBtn.style.display = 'none';
@@ -534,6 +629,7 @@
         });
 
         connection.on("RoundStarted", (wordLength) => {
+            playFanfare(); // sonido de inicio de ronda
             gameInProgress = true;
             startGameBtn.style.display = 'none';
             currentWordLength = wordLength;
@@ -564,8 +660,8 @@
                     if (result.won) {
                         showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
                     } else {
-                        const secretWord = result.word || "???";
-                        showMsg(gameMsgDiv, `😞 Fallaste. La palabra era: ${secretWord}. Has sido eliminado.`, true);
+                        // La palabra se mostrará en RoundEnded, no aquí
+                        showMsg(gameMsgDiv, `😞 Fallaste. Has sido eliminado.`, true);
                     }
                 } else {
                     gameActive = true;
@@ -576,6 +672,7 @@
         });
 
         connection.on("RoundEnded", (survivors, word) => {
+            playRoundEnd(survivors);
             roundActive = false;
             gameActive = false;
             let msg = `Ronda terminada. Palabra: ${word}. Sobrevivientes: ${survivors.join(', ')}`;
@@ -584,14 +681,16 @@
         });
 
         connection.on("GameEnded", (winner) => {
+            if (winner) {
+                playFanfare();
+                showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
+            } else {
+                playSadTrombone();
+                showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
+            }
             gameInProgress = false;
             roundActive = false;
             gameActive = false;
-            if (winner) {
-                showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
-            } else {
-                showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
-            }
             setTimeout(() => {
                 if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
                 resetLocalState();
@@ -604,6 +703,7 @@
         });
 
         connection.on("PlayerEliminated", (playerName) => {
+            playEliminated();
             showMsg(gameMsgDiv, `💀 ${playerName} ha sido eliminado`, true);
         });
 

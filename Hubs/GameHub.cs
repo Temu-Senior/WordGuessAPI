@@ -274,7 +274,7 @@ public class GameHub : Hub
 
         // Enviar la palabra secreta si el jugador ha perdido o ganado
         string wordToSend = null;
-        if (isCorrect || player.Status == "eliminated")
+        if (isCorrect)
         {
             wordToSend = room.CurrentWord;
         }
