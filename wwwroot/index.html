@@ -435,23 +435,22 @@
         updateKeyboardFromAttempts(attemptsList);
     }
 
-    // Función que actualiza los colores del teclado según todos los intentos acumulados
+    // ========== FUNCIÓN QUE COLOREA EL TECLADO QWERTY ==========
     function updateKeyboardFromAttempts(attemptsList) {
         const keyState = {};
-        // Recorrer todos los intentos en orden
+        // Recorrer todos los intentos en orden y determinar el mejor estado para cada letra
         for (const attempt of attemptsList) {
             const guess = attempt.guess;
             const result = attempt.result;
             for (let i = 0; i < guess.length; i++) {
                 const letter = guess[i].toUpperCase();
                 const status = result[i].status;
-                // Prioridad: correct > present > absent
                 if (!keyState[letter]) keyState[letter] = status;
                 else if (status === 'correct') keyState[letter] = 'correct';
                 else if (status === 'present' && keyState[letter] !== 'correct') keyState[letter] = 'present';
             }
         }
-        // Aplicar clases a las teclas
+        // Aplicar clases a cada tecla del teclado
         document.querySelectorAll('.key').forEach(key => {
             const letter = key.getAttribute('data-key');
             if (letter && keyState[letter]) {
@@ -464,6 +463,7 @@
     }
 
     function buildKeyboard() {
+        // Definición del teclado QWERTY con filas
         const rows = [
             ['q','w','e','r','t','y','u','i','o','p'],
             ['a','s','d','f','g','h','j','k','l','ñ'],
@@ -584,7 +584,7 @@
             roundActive = true;
             isWaitingForResult = false;
             document.querySelectorAll('.key').forEach(k => k.style.pointerEvents = '');
-            // Limpiar teclado visual al empezar nueva ronda
+            // Limpiar colores del teclado para la nueva ronda
             document.querySelectorAll('.key').forEach(key => {
                 key.classList.remove('correct', 'present', 'absent');
             });
@@ -601,7 +601,8 @@
                 const attempt = { guess: result.guess, result: result.resultArray };
                 currentAttempts.push(attempt);
                 updateBoardFromAttempts(currentAttempts);
-                // Forzar actualización del teclado con todos los intentos
+                // La función updateBoardFromAttempts ya llama a updateKeyboardFromAttempts
+                // pero por si acaso la llamamos de nuevo:
                 updateKeyboardFromAttempts(currentAttempts);
                 if (result.gameCompleted) {
                     gameActive = false;
