@@ -384,10 +384,10 @@ public class GameHub : Hub
 
     private List<string> GetAllWordsByLength(int length)
     {
-        // Reemplaza con tus listas reales de 4,5,6 letras
-        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA", "PISO", "MANO", "SALA", "COPA", "BOCA" };
-        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA", "PLUMA", "CARRO", "FLOR", "MANO", "CASA" };
-        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS", "RATONES", "SILLAS", "PERROS", "MESAS", "PLUMAS" };
+        // Puedes reemplazar estas listas con tus propias palabras (solo de 4,5,6 letras)
+        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA", "PISO", "MANO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UNAS", "VINO", "ROSA", "FLOR", "AZUL" };
+        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA", "PLUMA", "CARRO", "FLOR", "MANO", "CASA", "GATO", "LUNA", "SOL", "RICO", "PISO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UÑA", "VINO", "ARBOL", "CABLE", "DEDO", "FUEGO", "HIELO", "JEFE", "KILO", "LADO", "MADRE", "NARIZ", "OJO", "PADRE", "QUESO", "RIO", "SALUD", "TIGRE" };
+        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS", "RATONES", "SILLAS", "PERROS", "MESAS", "PLUMAS", "CARROS", "FLORES", "MANOS", "CASAS", "GATOS", "LUNAS", "SOLES", "RICOS", "PISOS", "SALAS", "COPAS", "BOCAS", "RATAS", "PATOS", "VACAS", "LOMAS", "PALAS", "MOTOS", "FOCAS", "BOTAS", "COLAS", "LATAS", "MULAS", "NIDOS", "PICOS", "SAPOS", "TAPAS", "UNAS", "VINOS", "ARBOLES", "CABLES", "DEDOS", "FUEGOS", "HIELOS", "JEFES", "KILOS", "LADOS", "MADRES", "NARICES", "OJOS", "PADRES", "QUESOS", "RIOS", "SALUDOS", "TIGRES" };
         return length switch
         {
             4 => palabras4,
