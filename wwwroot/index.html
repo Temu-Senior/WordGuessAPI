@@ -152,6 +152,7 @@
     let isWaitingForResult = false;
     let currentOwner = '';
     let gameInProgress = false;
+    let lastWord = ''; // Guardar la última palabra de la ronda
 
     // ==================== SOUND SYSTEM ====================
     let audioCtx = null;
@@ -167,7 +168,7 @@
         }
     }
 
-    function playBeep(frequency = 880, duration = 0.1, volume = 0.3) {
+    function playBeep(frequency = 880, duration = 0.2, volume = 0.4) {
         if (!soundEnabled) return;
         try {
             initAudio();
@@ -184,38 +185,39 @@
         } catch(e) { console.warn("Audio error:", e); }
     }
 
-    function playTick() { playBeep(880, 0.06, 0.2); }
+    function playTick() { playBeep(880, 0.08, 0.3); }
     function playFanfare() {
         if (!soundEnabled) return;
-        playBeep(523.25, 0.2, 0.25);
-        setTimeout(() => playBeep(659.25, 0.2, 0.25), 200);
-        setTimeout(() => playBeep(783.99, 0.4, 0.25), 400);
+        playBeep(523.25, 0.2, 0.3);
+        setTimeout(() => playBeep(659.25, 0.2, 0.3), 200);
+        setTimeout(() => playBeep(783.99, 0.4, 0.3), 400);
     }
-    // Sonido de acierto (estilo "100 mexicanos dijeron" - un ding alegre)
+    // Sonido de acierto estilo "100 mexicanos dijeron" (ding triunfal)
     function playCorrectSound() {
         if (!soundEnabled) return;
-        playBeep(1046.50, 0.3, 0.3); // Do agudo
-        setTimeout(() => playBeep(1318.52, 0.3, 0.3), 150);
+        playBeep(1046.50, 0.35, 0.5); // Do6
+        setTimeout(() => playBeep(1318.52, 0.35, 0.5), 180); // Mi6
     }
-    // Sonido de error (tacha) - un buzzer corto
+    // Sonido de error (tacha) - buzzer descendente
     function playWrongSound() {
         if (!soundEnabled) return;
-        playBeep(220, 0.2, 0.4);
-        setTimeout(() => playBeep(174.61, 0.3, 0.4), 200);
+        playBeep(330, 0.15, 0.5);
+        setTimeout(() => playBeep(261.63, 0.2, 0.5), 150); // Do4
+        setTimeout(() => playBeep(196.00, 0.3, 0.5), 350); // Sol3
     }
     function playSadTrombone() {
         if (!soundEnabled) return;
-        playBeep(440, 0.3, 0.25);
-        setTimeout(() => playBeep(349.23, 0.5, 0.25), 300);
+        playBeep(440, 0.3, 0.4);
+        setTimeout(() => playBeep(349.23, 0.5, 0.4), 300);
     }
     function playEliminated() {
         if (!soundEnabled) return;
-        playBeep(220, 0.2, 0.3);
-        setTimeout(() => playBeep(174.61, 0.3, 0.3), 250);
+        playBeep(220, 0.2, 0.4);
+        setTimeout(() => playBeep(174.61, 0.3, 0.4), 250);
     }
     function playRoundEnd(survivors) {
         if (!soundEnabled) return;
-        if (survivors && survivors.length > 0) playBeep(330, 0.5, 0.2);
+        if (survivors && survivors.length > 0) playBeep(330, 0.6, 0.3);
         else playSadTrombone();
     }
 
@@ -594,14 +596,13 @@
                     gameActive = false;
                     roundActive = false;
                     if (result.won) {
-                        playCorrectSound(); // Sonido de acierto estilo "100 mexicanos"
+                        playCorrectSound();
                         showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
                     } else {
-                        playWrongSound(); // Sonido de error (tacha)
+                        playWrongSound();
                         showMsg(gameMsgDiv, `😞 Fallaste. Has sido eliminado.`, true);
                     }
                 } else {
-                    // Intento incorrecto pero no eliminado aún: sonido de error (tacha) cada vez que fallas
                     playWrongSound();
                     gameActive = true;
                 }
@@ -611,6 +612,7 @@
         });
 
         connection.on("RoundEnded", (survivors, word) => {
+            lastWord = word; // Guardar la palabra para cuando termine el juego
             playRoundEnd(survivors);
             roundActive = false;
             gameActive = false;
@@ -621,11 +623,16 @@
 
         connection.on("GameEnded", (winner) => {
             if (winner) {
-                playFanfare(); // Victoria final
+                playFanfare();
                 showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
             } else {
                 playSadTrombone();
-                showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
+                // Mostrar la palabra que era al final
+                if (lastWord) {
+                    showMsg(gameMsgDiv, `😵 Todos fueron eliminados. La palabra era: ${lastWord}. Fin del juego.`, true);
+                } else {
+                    showMsg(gameMsgDiv, `😵 Todos fueron eliminados. Fin del juego.`, true);
+                }
             }
             gameInProgress = false;
             roundActive = false;
