@@ -186,35 +186,46 @@
     }
 
     function playTick() { playBeep(880, 0.08, 0.3); }
+    
     function playFanfare() {
         if (!soundEnabled) return;
         playBeep(523.25, 0.2, 0.3);
         setTimeout(() => playBeep(659.25, 0.2, 0.3), 200);
         setTimeout(() => playBeep(783.99, 0.4, 0.3), 400);
     }
-    // Sonido de acierto estilo "100 mexicanos dijeron" (ding triunfal)
-    function playCorrectSound() {
+    
+    // Sonido "tititirititi" (una melodía corta y alegre)
+    function playTitiTiriTiti() {
         if (!soundEnabled) return;
-        playBeep(1046.50, 0.35, 0.5); // Do6
-        setTimeout(() => playBeep(1318.52, 0.35, 0.5), 180); // Mi6
+        // Secuencia de notas: E5, G5, A5, B5, C6 (rápido)
+        // Duración de cada nota: 0.1s, última un poco más larga
+        playBeep(659.25, 0.1, 0.4);   // Mi5
+        setTimeout(() => playBeep(783.99, 0.1, 0.4), 110);  // Sol5
+        setTimeout(() => playBeep(880.00, 0.1, 0.4), 220);  // La5
+        setTimeout(() => playBeep(987.77, 0.12, 0.4), 330); // Si5
+        setTimeout(() => playBeep(1046.50, 0.2, 0.4), 460); // Do6
     }
+    
     // Sonido de error (tacha) - buzzer descendente
     function playWrongSound() {
         if (!soundEnabled) return;
         playBeep(330, 0.15, 0.5);
-        setTimeout(() => playBeep(261.63, 0.2, 0.5), 150); // Do4
-        setTimeout(() => playBeep(196.00, 0.3, 0.5), 350); // Sol3
+        setTimeout(() => playBeep(261.63, 0.2, 0.5), 150);
+        setTimeout(() => playBeep(196.00, 0.3, 0.5), 350);
     }
+    
     function playSadTrombone() {
         if (!soundEnabled) return;
         playBeep(440, 0.3, 0.4);
         setTimeout(() => playBeep(349.23, 0.5, 0.4), 300);
     }
+    
     function playEliminated() {
         if (!soundEnabled) return;
         playBeep(220, 0.2, 0.4);
         setTimeout(() => playBeep(174.61, 0.3, 0.4), 250);
     }
+    
     function playRoundEnd(survivors) {
         if (!soundEnabled) return;
         if (survivors && survivors.length > 0) playBeep(330, 0.6, 0.3);
@@ -596,7 +607,7 @@
                     gameActive = false;
                     roundActive = false;
                     if (result.won) {
-                        playCorrectSound();
+                        playTitiTiriTiti();  // Sonido "tititirititi" al acertar
                         showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
                     } else {
                         playWrongSound();
@@ -612,7 +623,7 @@
         });
 
         connection.on("RoundEnded", (survivors, word) => {
-            lastWord = word; // Guardar la palabra para cuando termine el juego
+            lastWord = word;
             playRoundEnd(survivors);
             roundActive = false;
             gameActive = false;
@@ -627,7 +638,6 @@
                 showMsg(gameMsgDiv, `🏆 ¡${winner} es el ganador absoluto! 🏆`, false);
             } else {
                 playSadTrombone();
-                // Mostrar la palabra que era al final
                 if (lastWord) {
                     showMsg(gameMsgDiv, `😵 Todos fueron eliminados. La palabra era: ${lastWord}. Fin del juego.`, true);
                 } else {
