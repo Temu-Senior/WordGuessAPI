@@ -272,6 +272,12 @@ public class GameHub : Hub
             await _hubContext.Clients.Group(roomCode).SendAsync("PlayerEliminated", player.Name);
         }
 
+        // Enviar la palabra secreta si el jugador ha perdido o ganado
+        string wordToSend = null;
+        if (isCorrect || player.Status == "eliminated")
+        {
+            wordToSend = room.CurrentWord;
+        }
         await Clients.Caller.SendAsync("GuessResult", new
         {
             success = true,
@@ -280,7 +286,7 @@ public class GameHub : Hub
             attemptsLeft = player.AttemptsLeft,
             gameCompleted = (isCorrect || player.Status == "eliminated"),
             won = isCorrect,
-            word = isCorrect ? room.CurrentWord : null
+            word = wordToSend
         });
 
         await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
@@ -379,7 +385,6 @@ public class GameHub : Hub
 
     private List<string> GetAllWordsByLength(int length)
     {
-        // ==================== PALABRAS DE 4 LETRAS ====================
         var palabras4 = new List<string>
         {
             "ABRA", "ABRE", "ACTO", "ALMA", "AMOR", "ARCO", "ARDE", "ARTE", "ASCO", "ASNO",
@@ -415,7 +420,6 @@ public class GameHub : Hub
             "YUCA", "ZAFA", "ZAFO", "ZAGA", "ZAPE", "ZONA", "ZUMO"
         };
 
-        // ==================== PALABRAS DE 5 LETRAS ====================
         var palabras5 = new List<string>
         {
             "ABEJA", "ABRIR", "ABUSO", "ACABO", "ACERO", "ACOGE", "ACOSO", "ACTUA", "ACUDE", "AGUJA",
@@ -490,7 +494,6 @@ public class GameHub : Hub
             "VOCAL", "VORAZ", "VUELT", "VULGO", "YERNO", "ZORRA", "ZURDO"
         };
 
-        // ==================== PALABRAS DE 6 LETRAS ====================
         var palabras6 = new List<string>
         {
             "ABISMO", "ABOGAR", "ABORDO", "ABRIGO", "ABSORB", "ABUELA", "ABUELO", "ACABAN", "ACACIA", "ACATAR",

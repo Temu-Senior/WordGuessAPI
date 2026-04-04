@@ -35,7 +35,6 @@
         .side-panel { flex: 1; min-width: 250px; background: rgba(26, 26, 27, 0.9); border-radius: 20px; padding: 15px; backdrop-filter: blur(4px); }
         h1 { text-align: center; font-size: 2rem; margin: 0 0 10px; }
         .auth-card, .lobby-card { background: rgba(26, 26, 27, 0.9); border-radius: 20px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(4px); }
-        /* Estilo para las dos tarjetas de autenticación */
         .auth-row {
             display: flex;
             flex-wrap: wrap;
@@ -100,8 +99,8 @@
 <body class="login-bg">
 <div class="game-container">
     <div class="main-panel">
-        <h1></h1>
-        <!-- Pantalla de autenticación con dos tarjetas separadas -->
+        <h1>⚔️ WORDLE BATTLE ROYALE</h1>
+        <!-- Pantalla de autenticación -->
         <div id="authScreen">
             <div class="auth-row">
                 <div class="auth-card-half">
@@ -202,7 +201,6 @@
     const waitingMsgDiv = document.getElementById('waitingMsg');
     const startGameBtn = document.getElementById('startGameBtn');
 
-    // Cambiar fondo según pantalla
     function setBackground(screen) {
         document.body.classList.remove('login-bg', 'lobby-bg', 'game-bg');
         if (screen === 'login') document.body.classList.add('login-bg');
@@ -563,8 +561,12 @@
                 if (result.gameCompleted) {
                     gameActive = false;
                     roundActive = false;
-                    if (result.won) showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
-                    else showMsg(gameMsgDiv, `😞 Fallaste. Has sido eliminado.`, true);
+                    if (result.won) {
+                        showMsg(gameMsgDiv, `🎉 ¡Adivinaste! Pasas a la siguiente ronda. 🎉`, false);
+                    } else {
+                        const secretWord = result.word || "???";
+                        showMsg(gameMsgDiv, `😞 Fallaste. La palabra era: ${secretWord}. Has sido eliminado.`, true);
+                    }
                 } else {
                     gameActive = true;
                 }
