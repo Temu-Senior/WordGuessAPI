@@ -45,7 +45,7 @@ public class LetterResult
 }
 
 // ==================== HUB PRINCIPAL ====================
-[Authorize] // <- Autorización restaurada
+[Authorize]
 public class GameHub : Hub
 {
     private static ConcurrentDictionary<string, Room> _rooms = new();
@@ -100,19 +100,39 @@ public class GameHub : Hub
             await Clients.Caller.SendAsync("Error", "La sala está llena (máximo 100 jugadores)");
             return;
         }
+
+        // Buscar si ya existe un jugador con el mismo nombre en la sala
+        var existingPlayer = room.Players.Values.FirstOrDefault(p => p.Name == playerName);
+        if (existingPlayer != null)
+        {
+            // Eliminar la entrada antigua
+            room.Players.TryRemove(existingPlayer.ConnectionId, out _);
+            Console.WriteLine($"Jugador {playerName} reconectado, se reemplaza conexión antigua.");
+        }
+
+        // Crear el nuevo jugador (si existía, se copia el estado)
         var player = new PlayerInRoom
         {
             ConnectionId = Context.ConnectionId,
             Name = playerName,
-            Status = "alive",
+            Status = existingPlayer?.Status ?? "alive",
+            AttemptsLeft = existingPlayer?.AttemptsLeft ?? 6,
+            HasGuessedInRound = existingPlayer?.HasGuessedInRound ?? false,
+            Attempts = existingPlayer?.Attempts ?? new List<AttemptInfo>(),
             JoinedAt = DateTime.UtcNow
         };
         room.Players.TryAdd(Context.ConnectionId, player);
-        await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
+        // Si el jugador que reconecta es el anfitrión, actualizar OwnerConnectionId
+        if (room.OwnerName == playerName)
+        {
+            room.OwnerConnectionId = Context.ConnectionId;
+            await _hubContext.Clients.Group(roomCode).SendAsync("RoomOwnerChanged", room.OwnerName);
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
         await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
         await _hubContext.Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
-        await _hubContext.Clients.Group(roomCode).SendAsync("RoomOwnerChanged", room.OwnerName);
 
         Console.WriteLine($"Players in room {roomCode}: {room.Players.Count}");
     }
@@ -238,7 +258,6 @@ public class GameHub : Hub
         }
 
         await _hubContext.Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength);
-        // No mostrar la palabra en logs
         Console.WriteLine($"Round started with word length {room.WordLength}");
     }
 
@@ -395,10 +414,10 @@ public class GameHub : Hub
 
     private List<string> GetAllWordsByLength(int length)
     {
-        // Reemplaza estas listas con las palabras reales que tengas
-        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA" };
-        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA" };
-        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS" };
+        // Reemplaza con tus listas de palabras reales
+        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA", "PISO", "MANO", "SALA", "COPA", "BOCA" };
+        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA", "PLUMA", "CARRO", "FLOR", "MANO", "CASA" };
+        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS", "RATONES", "SILLAS", "PERROS", "MESAS", "PLUMAS" };
         return length switch
         {
             4 => palabras4,
