@@ -1,10 +1,10 @@
 using System.Text;
-using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using WordGuessAPI.Data;
+using WordGuessAPI.Models;
 using WordGuessAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -58,7 +58,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// CORS (permite cualquier origen durante desarrollo, pero puedes restringir en producción)
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -110,10 +110,12 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Rate Limiting (protege contra ataques de fuerza bruta)
+// Rate Limiting (comentado temporalmente para evitar errores de compilación)
+// Si quieres activarlo, descomenta las siguientes líneas y asegúrate de tener el paquete Microsoft.AspNetCore.RateLimiting instalado
+/*
+using System.Threading.RateLimiting;
 builder.Services.AddRateLimiter(options =>
 {
-    // Límite para intentos de adivinanza: 10 intentos cada 10 segundos
     options.AddFixedWindowLimiter("GuessLimiter", opt =>
     {
         opt.PermitLimit = 10;
@@ -121,13 +123,11 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         opt.QueueLimit = 0;
     });
-    // Límite para unirse a salas: 5 intentos por minuto
     options.AddFixedWindowLimiter("JoinLimiter", opt =>
     {
         opt.PermitLimit = 5;
         opt.Window = TimeSpan.FromMinutes(1);
     });
-    // Opcional: límite global
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
@@ -137,6 +137,7 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1)
             }));
 });
+*/
 
 var app = builder.Build();
 
@@ -149,7 +150,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseCors("AllowAll");
-app.UseRateLimiter();  // Importante: después de CORS, antes de Authorization
+// app.UseRateLimiter();  // Descomentar si activas rate limiting
 app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
