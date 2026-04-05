@@ -1,11 +1,10 @@
 using System.Text;
-using System.Threading.RateLimiting; // <-- Agregado para rate limiting
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using WordGuessAPI.Data;
-using WordGuessAPI.Models;
 using WordGuessAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,16 +58,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Agregar política CORS (mantenemos AllowAll por ahora, pero no es compatible con credenciales)
+// CORS (permite cualquier origen durante desarrollo, pero puedes restringir en producción)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 // JWT
@@ -112,7 +110,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// ==================== AGREGAR RATE LIMITING ====================
+// Rate Limiting (protege contra ataques de fuerza bruta)
 builder.Services.AddRateLimiter(options =>
 {
     // Límite para intentos de adivinanza: 10 intentos cada 10 segundos
@@ -129,7 +127,7 @@ builder.Services.AddRateLimiter(options =>
         opt.PermitLimit = 5;
         opt.Window = TimeSpan.FromMinutes(1);
     });
-    // Opcional: límite global para todas las peticiones (protección básica)
+    // Opcional: límite global
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
@@ -149,19 +147,16 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// ==================== USAR RATE LIMITING (ANTES DE AUTENTICACIÓN) ====================
-app.UseRateLimiter();
-
 app.UseAuthentication();
 app.UseCors("AllowAll");
+app.UseRateLimiter();  // Importante: después de CORS, antes de Authorization
 app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<GameHub>("/gameHub");
 
-// Sembrar datos iniciales (CON PALABRAS DE 4,5,6 LETRAS PARA DIFICULTADES)
+// Sembrar datos iniciales
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -171,20 +166,15 @@ using (var scope = app.Services.CreateScope())
     {
         db.Words.AddRange(new List<Word>
         {
-            // Fáciles (4 letras)
             new Word { Text = "CASA", Difficulty = "easy" },
-            new Word { Text = "PERRO", Difficulty = "easy" },  // 5 letras? Perro tiene 5, mejor usar GATO (4)
             new Word { Text = "GATO", Difficulty = "easy" },
-            new Word { Text = "SOL", Difficulty = "easy" },    // 3 letras (no ideal, pero se puede)
             new Word { Text = "LUNA", Difficulty = "easy" },
-            // Normales (5 letras)
             new Word { Text = "MUNDO", Difficulty = "medium" },
             new Word { Text = "RATON", Difficulty = "medium" },
             new Word { Text = "SILLA", Difficulty = "medium" },
-            // Difíciles (6 letras)
-            new Word { Text = "SERVIDOR", Difficulty = "hard" },  // 8 letras
-            new Word { Text = "PROGRAMAR", Difficulty = "hard" }, // 9 letras
-            new Word { Text = "BASE", Difficulty = "hard" }       // 4 letras
+            new Word { Text = "PROBAR", Difficulty = "hard" },
+            new Word { Text = "SERVID", Difficulty = "hard" },
+            new Word { Text = "CLIENT", Difficulty = "hard" }
         });
         db.SaveChanges();
     }
@@ -194,7 +184,7 @@ using (var scope = app.Services.CreateScope())
         var admin = new User
         {
             Username = "admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
             IsAdmin = true
         };
         db.Users.Add(admin);
