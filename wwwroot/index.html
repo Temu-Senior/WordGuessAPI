@@ -318,6 +318,7 @@
 
     function logout() {
         localStorage.removeItem('token');
+        sessionStorage.removeItem('lastRoom'); // Limpiar sala guardada
         if (connection) connection.stop();
         token = null; currentUsername = '';
         authScreen.style.display = 'block';
@@ -366,6 +367,8 @@
             sidePanel.style.display = 'block';
             setBackground('game');
             showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando a que el anfitrión inicie la partida...`, false);
+            // Guardar sala para reconexión
+            sessionStorage.setItem('lastRoom', roomCode);
         }
     };
 
@@ -384,11 +387,16 @@
             sidePanel.style.display = 'block';
             setBackground('game');
             showMsg(gameMsgDiv, `Unido a sala ${code}. Esperando al anfitrión...`, false);
+            // Guardar sala para reconexión
+            sessionStorage.setItem('lastRoom', code);
         }
     };
 
     document.getElementById('leaveRoomBtn').onclick = async () => {
-        if (connection && currentRoom) await connection.invoke("LeaveRoom", currentRoom);
+        if (connection && currentRoom) {
+            await connection.invoke("LeaveRoom", currentRoom);
+            sessionStorage.removeItem('lastRoom'); // Limpiar sala guardada
+        }
         resetLocalState();
         gameScreen.style.display = 'none';
         sidePanel.style.display = 'none';
@@ -659,6 +667,7 @@
             gameActive = false;
             setTimeout(() => {
                 if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
+                sessionStorage.removeItem('lastRoom'); // Limpiar sala guardada
                 resetLocalState();
                 gameScreen.style.display = 'none';
                 sidePanel.style.display = 'none';
@@ -707,10 +716,32 @@
             console.log("Usuario restaurado desde token:", currentUsername);
         } catch(e) {
             console.error("Error decodificando token:", e);
-            // Si falla, dejamos 'Usuario' y se actualizará con eventos del hub
         }
         
         connectSignalR();
+        
+        // Intentar reconectar a la última sala si existía
+        const lastRoom = sessionStorage.getItem('lastRoom');
+        if (lastRoom && connection) {
+            // Esperar un poco a que la conexión esté lista
+            setTimeout(async () => {
+                try {
+                    await connection.invoke("JoinRoom", lastRoom);
+                    currentRoom = lastRoom;
+                    roomCodeSpan.innerText = lastRoom;
+                    lobbyScreen.style.display = 'none';
+                    gameScreen.style.display = 'block';
+                    sidePanel.style.display = 'block';
+                    setBackground('game');
+                    showMsg(gameMsgDiv, `Reconectado a sala ${lastRoom}`, false);
+                    // No limpiar lastRoom para que si recarga otra vez, pueda reconectar
+                } catch(err) {
+                    console.error("Error al reconectar a la sala:", err);
+                    sessionStorage.removeItem('lastRoom');
+                    showMsg(gameMsgDiv, "No se pudo reconectar a la sala anterior. Puedes crear o unirte a una nueva.", true);
+                }
+            }, 1000);
+        }
     } else {
         authScreen.style.display = 'block';
         lobbyScreen.style.display = 'none';
