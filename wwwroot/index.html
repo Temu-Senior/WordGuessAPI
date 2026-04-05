@@ -683,20 +683,34 @@
     };
 
     buildKeyboard();
+
+    // ==================== RESTAURAR SESIÓN AL RECARGAR ====================
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
         token = savedToken;
         authScreen.style.display = 'none';
         lobbyScreen.style.display = 'block';
         setBackground('lobby');
-        connectSignalR();
+        
+        // Decodificar token para obtener nombre de usuario
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            currentUsername = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || 'Usuario';
+            // Probar diferentes claims donde puede estar el nombre
+            currentUsername = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name']
+                           || payload['unique_name']
+                           || payload['name']
+                           || payload['sub']
+                           || 'Usuario';
             usernameSpan.innerText = currentUsername;
             isAdmin = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] === 'admin';
             adminSpan.innerText = isAdmin ? 'Admin' : '';
-        } catch(e) {}
+            console.log("Usuario restaurado desde token:", currentUsername);
+        } catch(e) {
+            console.error("Error decodificando token:", e);
+            // Si falla, dejamos 'Usuario' y se actualizará con eventos del hub
+        }
+        
+        connectSignalR();
     } else {
         authScreen.style.display = 'block';
         lobbyScreen.style.display = 'none';
