@@ -16,11 +16,13 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _config;
+    private readonly IWebHostEnvironment _env;
 
-    public AuthController(AppDbContext context, IConfiguration config)
+    public AuthController(AppDbContext context, IConfiguration config, IWebHostEnvironment env)
     {
         _context = context;
         _config = config;
+        _env = env;
     }
 
     public class RegisterRequest
@@ -49,14 +51,13 @@ public class AuthController : ControllerBase
         if (await _context.Users.AnyAsync(u => u.Username == request.Username))
             return BadRequest(new { success = false, message = "Username already exists" });
 
-        // Determinar si es el primer usuario
         var isFirstUser = !await _context.Users.AnyAsync();
 
         var user = new User
         {
             Username = request.Username,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            IsAdmin = isFirstUser   // <--- El primer usuario será administrador
+            IsAdmin = isFirstUser
         };
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -72,15 +73,17 @@ public class AuthController : ControllerBase
             return Unauthorized(new { success = false, message = "Invalid credentials" });
 
         var token = GenerateJwtToken(user);
-
-        // Opcional: cookie HttpOnly
-        Response.Cookies.Append("token", token, new CookieOptions
+        var expiryMinutes = double.Parse(_config["Jwt:ExpiryMinutes"]!);
+        var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
+            Secure = !_env.IsDevelopment(), // Solo HTTPS en producción
             SameSite = SameSiteMode.Strict,
-            Expires = DateTime.UtcNow.AddMinutes(double.Parse(_config["Jwt:ExpiryMinutes"]!))
-        });
+            Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)
+        };
+        Response.Cookies.Append("token", token, cookieOptions);
 
+        // También devolvemos el token en el cuerpo para compatibilidad con el frontend actual
         return Ok(new { success = true, data = new { message = "login successful", token } });
     }
 
@@ -96,6 +99,7 @@ public class AuthController : ControllerBase
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]!);
+        var expiryMinutes = double.Parse(_config["Jwt:ExpiryMinutes"]!);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]
@@ -104,7 +108,7 @@ public class AuthController : ControllerBase
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.IsAdmin ? "admin" : "user")
             }),
-            Expires = DateTime.UtcNow.AddMinutes(double.Parse(_config["Jwt:ExpiryMinutes"]!)),
+            Expires = DateTime.UtcNow.AddMinutes(expiryMinutes),
             Issuer = _config["Jwt:Issuer"],
             Audience = _config["Jwt:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

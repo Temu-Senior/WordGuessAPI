@@ -1,11 +1,12 @@
 using System.Text;
+using System.Threading.RateLimiting; // <-- Agregado para rate limiting
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using WordGuessAPI.Data;
 using WordGuessAPI.Models;
-using WordGuessAPI.Hubs;  // <--- Agregar este using
+using WordGuessAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,7 +59,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Agregar política CORS
+// Agregar política CORS (mantenemos AllowAll por ahora, pero no es compatible con credenciales)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -95,7 +96,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
     
-    // ========== LO QUE FALTA: LEER TOKEN DESDE QUERY STRING PARA SIGNALR ==========
+    // Leer token desde query string para SignalR
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -111,6 +112,34 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// ==================== AGREGAR RATE LIMITING ====================
+builder.Services.AddRateLimiter(options =>
+{
+    // Límite para intentos de adivinanza: 10 intentos cada 10 segundos
+    options.AddFixedWindowLimiter("GuessLimiter", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromSeconds(10);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+    // Límite para unirse a salas: 5 intentos por minuto
+    options.AddFixedWindowLimiter("JoinLimiter", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+    });
+    // Opcional: límite global para todas las peticiones (protección básica)
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -120,13 +149,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// ==================== USAR RATE LIMITING (ANTES DE AUTENTICACIÓN) ====================
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapControllers();
-app.MapHub<GameHub>("/gameHub");  // <--- Asegurar que GameHub existe
+app.MapHub<GameHub>("/gameHub");
 
 // Sembrar datos iniciales (CON PALABRAS DE 4,5,6 LETRAS PARA DIFICULTADES)
 using (var scope = app.Services.CreateScope())

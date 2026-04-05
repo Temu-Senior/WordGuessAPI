@@ -252,9 +252,16 @@
         else if (screen === 'game') document.body.classList.add('game-bg');
     }
 
+    // Función segura para mostrar mensajes (sin innerHTML)
     function showMsg(container, text, isError = false) {
-        container.innerHTML = `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`;
-        setTimeout(() => { if (container.innerHTML === `<div style="color:${isError ? '#f87171' : '#86efac'}">${text}</div>`) container.innerHTML = ''; }, 5000);
+        const msgDiv = document.createElement('div');
+        msgDiv.style.color = isError ? '#f87171' : '#86efac';
+        msgDiv.textContent = text;
+        container.innerHTML = '';
+        container.appendChild(msgDiv);
+        setTimeout(() => {
+            if (container.firstChild === msgDiv) container.innerHTML = '';
+        }, 5000);
     }
 
     // ==================== AUTENTICACIÓN ====================
@@ -337,14 +344,21 @@
     document.getElementById('loginBtn').onclick = login;
     document.getElementById('logoutBtn').onclick = logout;
 
+    // Generar código de sala criptográfico
+    function generateRoomCode() {
+        const array = new Uint8Array(4);
+        crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('').substring(0, 6).toUpperCase();
+    }
+
     // ==================== LOBBY Y SALAS ====================
     document.getElementById('createRoomBtn').onclick = async () => {
         if (!currentUsername) return showMsg(document.getElementById('lobbyMsg'), 'No estás logueado', true);
         const difficulty = document.getElementById('difficultySelect').value;
-        const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const roomCode = generateRoomCode();
         if (connection) {
             resetLocalState();
-            await connection.invoke("CreateRoom", roomCode, difficulty, currentUsername);
+            await connection.invoke("CreateRoom", roomCode, difficulty);
             currentRoom = roomCode;
             roomCodeSpan.innerText = roomCode;
             lobbyScreen.style.display = 'none';
@@ -362,7 +376,7 @@
         document.getElementById('joinRoomCode').value = code;
         if (connection) {
             resetLocalState();
-            await connection.invoke("JoinRoom", code, currentUsername);
+            await connection.invoke("JoinRoom", code);
             currentRoom = code;
             roomCodeSpan.innerText = code;
             lobbyScreen.style.display = 'none';
@@ -435,7 +449,6 @@
         updateKeyboardFromAttempts(attemptsList);
     }
 
-    // ========== FUNCIÓN QUE COLOREA EL TECLADO QWERTY ==========
     function updateKeyboardFromAttempts(attemptsList) {
         const keyState = {};
         for (const attempt of attemptsList) {
@@ -492,7 +505,7 @@
             if (currentLocalGuess.length === currentWordLength) {
                 isWaitingForResult = true;
                 document.querySelectorAll('.key').forEach(k => k.style.pointerEvents = 'none');
-                connection.invoke("MakeGuess", currentRoom, currentLocalGuess, currentUsername)
+                connection.invoke("MakeGuess", currentRoom, currentLocalGuess)
                     .catch(err => { console.error(err); isWaitingForResult = false; });
                 currentLocalGuess = '';
             } else {
@@ -528,8 +541,9 @@
     // ==================== SIGNALR ====================
     function connectSignalR() {
         if (connection) connection.stop();
+        // Enviar token en query string para autorización
         connection = new signalR.HubConnectionBuilder()
-            .withUrl(`${API_BASE}/gameHub`)
+            .withUrl(`${API_BASE}/gameHub?access_token=${token}`)
             .withAutomaticReconnect()
             .build();
 
@@ -598,8 +612,6 @@
                 const attempt = { guess: result.guess, result: result.resultArray };
                 currentAttempts.push(attempt);
                 updateBoardFromAttempts(currentAttempts);
-                // La función updateBoardFromAttempts ya llama a updateKeyboardFromAttempts
-                // pero por si acaso la llamamos de nuevo:
                 updateKeyboardFromAttempts(currentAttempts);
                 if (result.gameCompleted) {
                     gameActive = false;

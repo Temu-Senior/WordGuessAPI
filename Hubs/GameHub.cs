@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using System.Security.Claims;
 
 namespace WordGuessAPI.Hubs;
 
@@ -43,6 +45,7 @@ public class LetterResult
 }
 
 // ==================== HUB PRINCIPAL ====================
+[Authorize] // <- Autorización restaurada
 public class GameHub : Hub
 {
     private static ConcurrentDictionary<string, Room> _rooms = new();
@@ -53,10 +56,14 @@ public class GameHub : Hub
         _hubContext = hubContext;
     }
 
+    private string GetPlayerName() => Context.User?.Identity?.Name ?? "Anónimo";
+
     // ==================== SALAS ====================
-    public async Task CreateRoom(string roomCode, string difficulty, string playerName)
+    public async Task CreateRoom(string roomCode, string difficulty)
     {
+        var playerName = GetPlayerName();
         Console.WriteLine($"CreateRoom: {roomCode}, difficulty: {difficulty}, player: {playerName}");
+
         if (_rooms.ContainsKey(roomCode))
         {
             await Clients.Caller.SendAsync("Error", "La sala ya existe");
@@ -75,12 +82,14 @@ public class GameHub : Hub
             OwnerName = playerName
         };
         _rooms.TryAdd(roomCode, room);
-        await JoinRoom(roomCode, playerName);
+        await JoinRoom(roomCode);
     }
 
-    public async Task JoinRoom(string roomCode, string playerName)
+    public async Task JoinRoom(string roomCode)
     {
+        var playerName = GetPlayerName();
         Console.WriteLine($"JoinRoom: {roomCode}, player: {playerName}, conn: {Context.ConnectionId}");
+
         if (!_rooms.TryGetValue(roomCode, out var room))
         {
             await Clients.Caller.SendAsync("Error", "La sala no existe");
@@ -132,7 +141,7 @@ public class GameHub : Hub
         }
     }
 
-    // ==================== INICIO DE JUEGO (SOLO ANFITRIÓN) ====================
+    // ==================== INICIO DE JUEGO ====================
     public async Task StartGameByHost(string roomCode)
     {
         if (!_rooms.TryGetValue(roomCode, out var room))
@@ -229,12 +238,14 @@ public class GameHub : Hub
         }
 
         await _hubContext.Clients.Group(roomCode).SendAsync("RoundStarted", room.WordLength);
-        Console.WriteLine($"Round started with word: {room.CurrentWord}");
+        // No mostrar la palabra en logs
+        Console.WriteLine($"Round started with word length {room.WordLength}");
     }
 
     // ==================== LÓGICA DE JUEGO ====================
-    public async Task MakeGuess(string roomCode, string guess, string playerName)
+    public async Task MakeGuess(string roomCode, string guess)
     {
+        var playerName = GetPlayerName();
         if (!_rooms.TryGetValue(roomCode, out var room) || !room.RoundActive)
         {
             await Clients.Caller.SendAsync("Error", "No hay ronda activa");
@@ -384,10 +395,10 @@ public class GameHub : Hub
 
     private List<string> GetAllWordsByLength(int length)
     {
-        // Puedes reemplazar estas listas con tus propias palabras (solo de 4,5,6 letras)
-        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA", "PISO", "MANO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UNAS", "VINO", "ROSA", "FLOR", "AZUL" };
-        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA", "PLUMA", "CARRO", "FLOR", "MANO", "CASA", "GATO", "LUNA", "SOL", "RICO", "PISO", "SALA", "COPA", "BOCA", "RATA", "PATO", "VACA", "LOMA", "PALA", "MOTO", "FOCA", "BOTA", "COLA", "LATA", "MULA", "NIDO", "PICO", "SAPO", "TAPA", "UÑA", "VINO", "ARBOL", "CABLE", "DEDO", "FUEGO", "HIELO", "JEFE", "KILO", "LADO", "MADRE", "NARIZ", "OJO", "PADRE", "QUESO", "RIO", "SALUD", "TIGRE" };
-        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS", "RATONES", "SILLAS", "PERROS", "MESAS", "PLUMAS", "CARROS", "FLORES", "MANOS", "CASAS", "GATOS", "LUNAS", "SOLES", "RICOS", "PISOS", "SALAS", "COPAS", "BOCAS", "RATAS", "PATOS", "VACAS", "LOMAS", "PALAS", "MOTOS", "FOCAS", "BOTAS", "COLAS", "LATAS", "MULAS", "NIDOS", "PICOS", "SAPOS", "TAPAS", "UNAS", "VINOS", "ARBOLES", "CABLES", "DEDOS", "FUEGOS", "HIELOS", "JEFES", "KILOS", "LADOS", "MADRES", "NARICES", "OJOS", "PADRES", "QUESOS", "RIOS", "SALUDOS", "TIGRES" };
+        // Reemplaza estas listas con las palabras reales que tengas
+        var palabras4 = new List<string> { "CASA", "GATO", "LUNA", "RICO", "MESA" };
+        var palabras5 = new List<string> { "MUNDO", "RATON", "SILLA", "PERRO", "MESA" };
+        var palabras6 = new List<string> { "PROBAR", "SERVID", "CLIENT", "RONDAS", "MUNDOS" };
         return length switch
         {
             4 => palabras4,
