@@ -127,19 +127,19 @@ public class GameHub : Hub
         if (room.OwnerName == playerName)
         {
             room.OwnerConnectionId = Context.ConnectionId;
-            await _hubContext.Clients.Group(roomCode).SendAsync("RoomOwnerChanged", room.OwnerName);
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
         await _hubContext.Clients.Group(roomCode).SendAsync("PlayersUpdate", GetPlayersList(room));
         await _hubContext.Clients.Group(roomCode).SendAsync("WaitingForPlayers", room.Players.Count);
+        
+        // Enviar el nombre del anfitrión a TODOS los jugadores de la sala
+        await _hubContext.Clients.Group(roomCode).SendAsync("RoomOwnerChanged", room.OwnerName);
 
         // Si la ronda ya está activa, enviar el estado actual al jugador que reconecta
         if (room.RoundActive)
         {
-            // Enviar el evento RoundStarted con la longitud
             await Clients.Caller.SendAsync("RoundStarted", room.WordLength);
-            // Enviar los intentos anteriores del jugador (para reconstruir el tablero)
             if (player.Attempts.Any())
             {
                 foreach (var attempt in player.Attempts)

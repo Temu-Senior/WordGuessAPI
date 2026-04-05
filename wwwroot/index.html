@@ -252,7 +252,6 @@
         else if (screen === 'game') document.body.classList.add('game-bg');
     }
 
-    // Función segura para mostrar mensajes (sin innerHTML)
     function showMsg(container, text, isError = false) {
         const msgDiv = document.createElement('div');
         msgDiv.style.color = isError ? '#f87171' : '#86efac';
@@ -318,7 +317,7 @@
 
     function logout() {
         localStorage.removeItem('token');
-        sessionStorage.removeItem('lastRoom'); // Limpiar sala guardada
+        sessionStorage.removeItem('lastRoom');
         if (connection) connection.stop();
         token = null; currentUsername = '';
         authScreen.style.display = 'block';
@@ -345,7 +344,6 @@
     document.getElementById('loginBtn').onclick = login;
     document.getElementById('logoutBtn').onclick = logout;
 
-    // Generar código de sala criptográfico
     function generateRoomCode() {
         const array = new Uint8Array(4);
         crypto.getRandomValues(array);
@@ -367,7 +365,6 @@
             sidePanel.style.display = 'block';
             setBackground('game');
             showMsg(gameMsgDiv, `Sala creada: ${roomCode}. Esperando a que el anfitrión inicie la partida...`, false);
-            // Guardar sala para reconexión
             sessionStorage.setItem('lastRoom', roomCode);
         }
     };
@@ -387,7 +384,6 @@
             sidePanel.style.display = 'block';
             setBackground('game');
             showMsg(gameMsgDiv, `Unido a sala ${code}. Esperando al anfitrión...`, false);
-            // Guardar sala para reconexión
             sessionStorage.setItem('lastRoom', code);
         }
     };
@@ -395,7 +391,7 @@
     document.getElementById('leaveRoomBtn').onclick = async () => {
         if (connection && currentRoom) {
             await connection.invoke("LeaveRoom", currentRoom);
-            sessionStorage.removeItem('lastRoom'); // Limpiar sala guardada
+            sessionStorage.removeItem('lastRoom');
         }
         resetLocalState();
         gameScreen.style.display = 'none';
@@ -549,7 +545,6 @@
     // ==================== SIGNALR ====================
     function connectSignalR() {
         if (connection) connection.stop();
-        // Enviar token en query string para autorización
         connection = new signalR.HubConnectionBuilder()
             .withUrl(`${API_BASE}/gameHub?access_token=${token}`)
             .withAutomaticReconnect()
@@ -603,10 +598,7 @@
             roundActive = true;
             isWaitingForResult = false;
             document.querySelectorAll('.key').forEach(k => k.style.pointerEvents = '');
-            // Limpiar colores del teclado para la nueva ronda
-            document.querySelectorAll('.key').forEach(key => {
-                key.classList.remove('correct', 'present', 'absent');
-            });
+            document.querySelectorAll('.key').forEach(key => key.classList.remove('correct', 'present', 'absent'));
             boardDiv.style.display = 'block';
             keyboardDiv.style.display = 'block';
             waitingMsgDiv.style.display = 'none';
@@ -667,7 +659,7 @@
             gameActive = false;
             setTimeout(() => {
                 if (connection && currentRoom) connection.invoke("LeaveRoom", currentRoom);
-                sessionStorage.removeItem('lastRoom'); // Limpiar sala guardada
+                sessionStorage.removeItem('lastRoom');
                 resetLocalState();
                 gameScreen.style.display = 'none';
                 sidePanel.style.display = 'none';
@@ -693,18 +685,14 @@
 
     buildKeyboard();
 
-    // ==================== RESTAURAR SESIÓN AL RECARGAR ====================
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
         token = savedToken;
         authScreen.style.display = 'none';
         lobbyScreen.style.display = 'block';
         setBackground('lobby');
-        
-        // Decodificar token para obtener nombre de usuario
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            // Probar diferentes claims donde puede estar el nombre
             currentUsername = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name']
                            || payload['unique_name']
                            || payload['name']
@@ -717,13 +705,9 @@
         } catch(e) {
             console.error("Error decodificando token:", e);
         }
-        
         connectSignalR();
-        
-        // Intentar reconectar a la última sala si existía
         const lastRoom = sessionStorage.getItem('lastRoom');
         if (lastRoom && connection) {
-            // Esperar un poco a que la conexión esté lista
             setTimeout(async () => {
                 try {
                     await connection.invoke("JoinRoom", lastRoom);
@@ -734,7 +718,6 @@
                     sidePanel.style.display = 'block';
                     setBackground('game');
                     showMsg(gameMsgDiv, `Reconectado a sala ${lastRoom}`, false);
-                    // No limpiar lastRoom para que si recarga otra vez, pueda reconectar
                 } catch(err) {
                     console.error("Error al reconectar a la sala:", err);
                     sessionStorage.removeItem('lastRoom');
