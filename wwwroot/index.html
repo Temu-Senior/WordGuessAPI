@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Wordle Battle Royale</title>
+    <title>WORDGUESS Battle Royale</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
         * { box-sizing: border-box; user-select: none; }
@@ -65,18 +65,18 @@
 <body class="login-bg">
 <div class="game-container">
     <div class="main-panel">
-        <h1>⚔️ WORDLE BATTLE ROYALE</h1>
+        <h1> WORDGUESS BATTLE ROYALE</h1>
         <!-- Autenticación -->
         <div id="authScreen">
             <div class="auth-row">
                 <div class="auth-card-half">
-                    <h3>📝 Registro</h3>
+                    <h3> Registro</h3>
                     <input type="text" id="regUser" placeholder="Usuario (3-20 caracteres)">
                     <input type="password" id="regPass" placeholder="Contraseña (mínimo 6)">
                     <button id="registerBtn">Registrarse</button>
                 </div>
                 <div class="auth-card-half">
-                    <h3>🔐 Inicio de sesión</h3>
+                    <h3> Inicio de sesión</h3>
                     <input type="text" id="loginUser" placeholder="Usuario">
                     <input type="password" id="loginPass" placeholder="Contraseña">
                     <button id="loginBtn">Iniciar sesión</button>
@@ -95,11 +95,11 @@
                 <h3>🎮 Sala multijugador</h3>
                 <label>Dificultad:</label>
                 <select id="difficultySelect">
-                    <option value="easy">🍃 Fácil (4 letras)</option>
-                    <option value="normal" selected>⚡ Normal (5 letras)</option>
-                    <option value="hard">🔥 Difícil (6 letras)</option>
+                    <option value="easy"> Fácil (4 letras)</option>
+                    <option value="normal" selected> Normal (5 letras)</option>
+                    <option value="hard"> Difícil (6 letras)</option>
                 </select>
-                <button id="createRoomBtn">✨ Crear nueva sala</button>
+                <button id="createRoomBtn">Crear nueva sala</button>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <input type="text" id="joinRoomCode" placeholder="Código de sala" autocomplete="off" style="text-transform:uppercase">
                     <button id="joinRoomBtn" style="width:auto;">Unirse</button>
