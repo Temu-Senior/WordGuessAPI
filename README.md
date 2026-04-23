@@ -1,4 +1,4 @@
-# WordGuess Frontend - Battle Royale de Palabras
+# WordGuess Backend - Battle Royale de Palabras
 
 **Desarrollado por:**  
 Angel Eduardo Garcia Santa Cruz  
